@@ -1,0 +1,21 @@
+[tool.black]
+line-length = 88
+target-version = ['py37', 'py38', 'py39']
+include = '\.pyi?$'
+exclude = '''
+/(
+  | \.git
+  | .eggs
+  | build
+)/
+'''
+
+[tool.check-manifest]
+ignore = [
+  'examples/**',
+  'tests/**',
+  'binder/**',
+  '.*',
+  'pyproject.toml',
+  'pytest.ini',
+]
