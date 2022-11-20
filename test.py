@@ -1,6 +1,5 @@
 from pysg.drawing import GStateColorMapper
 
-
 class TestState(GStateColorMapper):
 	Online = "#fff"
 	Offline = "#000"
