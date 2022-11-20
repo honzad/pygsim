@@ -1,15 +1,18 @@
-from typing import List, Any, Tuple, Union
+from typing import List, Union
 from enum import Enum, EnumMeta
 from itertools import count
 from abc import ABC, abstractmethod
 
 from simpy.rt import RealtimeEnvironment
 import pygame
+from pygame.surface import Surface
 
 from pysg.drawing import GShape, GShapeType
 
 
 class GSimulationSpeed(Enum):
+    """Simulation speed enum, where each value is multiplier of normal simulation speed
+    """
     Real = 1
     Slow = 2
     Fast = 5
@@ -18,17 +21,20 @@ class GSimulationSpeed(Enum):
 
 
 class GEnvironment(RealtimeEnvironment):
-    """Extended ``simpy.rt.RealtimeEnvironment`` with graphical capabilities of ``pygame`` to draw simulated objects.
+    """Extended ``simpy.rt.RealtimeEnvironment`` with graphical \
+        capabilities of ``pygame`` to draw simulated objects.
 
     :param fps: Screen refresh rate in times per second, defaults to 30
     :type fps: int, optional
-    :param simulation_speed: How fast should simulation proceed, defaults to GSimulationSpeed.Real
+    :param simulation_speed: How fast should simulation proceed, defaults \
+        to GSimulationSpeed.Real
     :type simulation_speed: Union[GSimulationSpeed, int, float], optional
     :param resolution: Defines ``pygame`` window size, defaults to (800, 600)
     :type resolution: Tuple[int, int], optional
     :param background_color: _description_, defaults to ``pygame.Color(0,0,0)``
-    :type background_color: pygame.Color, optional
-    :param auto_run: Specifies if the simulation will start on it self, or if it needs to be started via ``.run()`` elsewhere, defaults to False
+    :type background_color: pygame.Color, optional,,
+    :param auto_run: Specifies if the simulation will start on it self, or if it \
+        needs to be started via ``.run()`` elsewhere, defaults to False
     :type auto_run: bool, optional
     """
 
@@ -49,14 +55,16 @@ class GEnvironment(RealtimeEnvironment):
         self._resolution = resolution
         self._on_pygame_quit = self.event()
         self._background_color = background_color
-        self._screen = pygame.display.set_mode(self._resolution)
+        self._screen: Surface = pygame.display.set_mode(self._resolution)
         self._draw_callbacks: List[GSimulationObject] = []
 
         if auto_run:
             self.run()
 
     def _draw_loop(self):
-        """Drawing loop using timeout calculated from desired simulation speed and fps"""
+        """Drawing loop using timeout calculated from desired \
+            simulation speed and fps
+        """
         while True:
             if self._is_quit_requested():
                 self._on_pygame_quit.succeed()
@@ -65,10 +73,11 @@ class GEnvironment(RealtimeEnvironment):
 
     def _redraw(self) -> None:
         """Redraws screen and tells every registered drawable to draw itself"""
-        self._screen.fill(self._fill_color)
+        self._screen.fill(self._background_color)
         for draw_call in self._draw_callbacks:
             draw_call(screen=self._screen)
-            pygame.display.flip()  # Or use update in each draw calls to only specific parts
+            pygame.display.flip()
+            # Or use update in each draw calls to only specific parts
 
     def add_drawable(self, callable: "GSimulationObject"):
         pass
@@ -93,9 +102,11 @@ class GEnvironment(RealtimeEnvironment):
 def get_factor_from_speed(
     simulation_speed: Union[GSimulationSpeed, int, float]
 ) -> float:
-    """Gets factor at which should simulation proceed, based on number how many times the speed of the simulation should be
+    """Gets factor at which should simulation proceed, based on number how many times \
+        the speed of the simulation should be
 
-    :param simulation_speed: Desired speed of simulation, where speed is how big the simulation speed multiplication is.
+    :param simulation_speed: Desired speed of simulation, where speed is how big the \
+        simulation speed multiplication is.
     :type simulation_speed: Union[GSimulationSpeed, int, float]
     :raises ValueError: When invalid GSimulationSpeed is supplied.
     :raises ValueError: When supplied speed is either zero or negative.
@@ -121,17 +132,23 @@ def get_factor_from_speed(
 class GSimulationObject(ABC):
     """Base graphical simulation object.
 
-    Has to be inherited and customized with custom :func:`~pysg.core.GSimulationObject.life_cycle` method, and :func:`~pysg.core.GSimulationObject.draw` if needed.
+    Has to be inherited and customized with custom \
+        :func:`~pysg.core.GSimulationObject.life_cycle` method, \
+        and :func:`~pysg.core.GSimulationObject.draw` if needed.
 
     :param env: Graphical envirioment.
     :type env: :class:`~pysg.environment.GEnvironment`
-    :param states: User defined state to color mapper created with :func:`~pysg.drawing.generate_state_color_enum`.
+    :param states: User defined state to color mapper created \
+        with :func:`~pysg.drawing.generate_state_color_enum`.
     :type states: EnumMeta
     :param shape: What shape should the simulated object be drawn as.
-    :type shape: :class:`~pysg.drawing.GShape`, defaults to GShape(GShapeType.Circle, 10)
-    :param default_state: Default state of user defined mapper, defaults to None (select the first in Enum).
+    :type shape: :class:`~pysg.drawing.GShape`, defaults \
+        to GShape(GShapeType.Circle, 10)
+    :param default_state: Default state of user defined mapper, defaults \
+        to None (select the first in Enum).
     :type default_state: Enum, optional
-    :param auto_run: Specifies if the simulation will start on it self, or if it needs to be started via ``.run()`` elsewhere, defaults to False
+    :param auto_run: Specifies if the simulation will start on it self, or if it \
+        needs to be started via ``.run()`` elsewhere, defaults to False
     :type auto_run: bool, optional
     """
 
@@ -142,7 +159,7 @@ class GSimulationObject(ABC):
         env: GEnvironment,
         states: EnumMeta,
         shape: GShape = GShape(GShapeType.Circle, 10),
-        default_state: Enum = None,
+        default_state: Union[Enum, None] = None,
         auto_run=False,
     ) -> None:
         self._id = next(self._object_id_counter)
@@ -154,18 +171,19 @@ class GSimulationObject(ABC):
         if auto_run:
             self.run()
 
-    def __call__(self, screen: pygame.Surface) -> None:
+    def __call__(self, screen: Surface) -> None:
         """Calls the drawing function when class called as function
 
         :param screen: Screen to draw this object on
         :type screen: pygame.Surface
         """
-        self._draw(screen)
+        self.draw(screen)
 
-    def draw(self, screen: pygame.Surface) -> None:
+    def draw(self, screen: Surface) -> None:
         """Drawing function, can be overidden.
 
-        This draw call function is called `fps` times per second as specified in :class:`~pysg.environment.GEnvironment` .
+        This draw call function is called `fps` times per second as \
+            specified in :class:`~pysg.environment.GEnvironment` .
 
         :param screen: Screen to draw this object on
         :type screen: pygame.Surface
@@ -175,7 +193,7 @@ class GSimulationObject(ABC):
     @abstractmethod
     def life_cycle(self):
         """Simulation life cycle. **Has to be overidden**"""
-        pass
+        yield self._env.timeout(1)
 
     def run(self) -> None:
         """Starts objects simulation"""

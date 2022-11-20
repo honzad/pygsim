@@ -8,12 +8,20 @@ from pysg.util import clamp, is_valid_hex, hex_to_rgb
 
 
 def validate_enumerations(d: Dict[str, Union[str, int]]) -> None:
+    """Validates :class:`~pysg.drawing.GStateColorMapper` color values
+
+    :param d: Color values from Enum
+    :type d: Dict[str, Union[str, int]]
+    :raises ValueError: If string value is not a valid HEX color format
+    :raises ValueError: If negative int value is supplied
+    :raises ValueError: If int value is larger than number of Enum values
+    :raises ValueError: If invalid type other than int or string supplied as color
+    """
     for data in d.values():
-        data_type = f"{type(data).__name__}"
-        if data_type == str.__name__:
+        if isinstance(data, str):
             if not is_valid_hex(data):
                 raise ValueError(f"Hex value '{data}' is not valid")
-        elif data_type == int.__name__:
+        elif isinstance(data, int):
             if data < 0:
                 raise ValueError("Negative number supplied")
             if data >= len(d):
@@ -25,6 +33,13 @@ def validate_enumerations(d: Dict[str, Union[str, int]]) -> None:
 
 
 def generate_color_palette(n: int = 5) -> List[Tuple[int, int, int]]:
+    """Generates color pallete of size n
+
+    :param n: Number of samples of pallete, defaults to 5
+    :type n: int, optional
+    :return: List of RGB tuples
+    :rtype: List[Tuple[int, int, int]]
+    """
     HSV_tuples = [(x * 1.0 / n, 0.5, 0.5) for x in range(n)]
     RGB_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), HSV_tuples)
     return list(
@@ -38,11 +53,17 @@ def generate_color_palette(n: int = 5) -> List[Tuple[int, int, int]]:
 def color_enumerations_to_colors(
     d: Dict[str, Union[str, int]]
 ) -> Dict[str, pygame.Color]:
+    """Creates :class:`~pysg.drawing.GStateColorMapper` color values
+
+    :param d: Color values from Enum
+    :type d: Dict[str, Union[str, int]]
+    :return: Dictionary mapping, Enum keys to :class:`~pygame.Color`
+    :rtype: Dict[str, pygame.Color]
+    """
     color_palette = generate_color_palette(len(d))
     color_dict: Dict[str, pygame.Color] = {}
     for i, (key, data) in enumerate(d.items()):
-        data_type = f"{type(data).__name__}"
-        if data_type == str.__name__:
+        if isinstance(data, str):
             color_dict.update({key: pygame.Color(hex_to_rgb(data))})
         else:
             color_dict.update({key: pygame.Color(color_palette[i])})
@@ -50,12 +71,13 @@ def color_enumerations_to_colors(
 
 
 class GStateColorMapperMeta(EnumMeta):
-    def __new__(metacls, cls: str, bases, classdict, **kwds):
+    """Meta class for :class:`~.GStateColorMapper`"""
+    def __new__(cls, cls_str: str, bases, classdict, **kwds):
         enumerations = {x: y for x, y in classdict.items() if not x.startswith("_")}
         validate_enumerations(enumerations)
-        enum = super().__new__(metacls, cls, bases, classdict, **kwds)
-        enum._enumerations = enumerations
-        enum._colors = color_enumerations_to_colors(enumerations)
+        enum = super().__new__(cls, cls_str, bases, classdict, **kwds)
+        enum._enumerations = enumerations  # type: ignore
+        enum._colors = color_enumerations_to_colors(enumerations)  # type: ignore
         return enum
 
     def __getitem__(cls, key):
@@ -69,6 +91,11 @@ class GStateColorMapperMeta(EnumMeta):
 
 
 class GStateColorMapper(Enum, metaclass=GStateColorMapperMeta):
+    """Maps Enum values to color values, takes string or int as value
+
+    String values HAS to be in hex format.
+    Int values HAS to be less than count of all key in enum
+    """
     def __get__(self, instance, owner):
         return self.__class__.__members__[self.name]
 
@@ -78,4 +105,4 @@ class GStateColorMapper(Enum, metaclass=GStateColorMapperMeta):
 
     @property
     def _get_color(self) -> pygame.Color:
-        return self.__class__._colors[self.name]
+        return self.__class__._colors[self.name]  # type: ignore

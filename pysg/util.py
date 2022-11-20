@@ -1,6 +1,6 @@
-from PIL import ImageColor
-from typing import Tuple
 import re
+from PIL import ImageColor
+from typing import Tuple, Any
 
 
 def clamp(num, min_value, max_value):
@@ -12,7 +12,7 @@ def is_valid_hex(string: str) -> bool:
     regex = "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$"
     p = re.compile(regex)
 
-    if string == None:
+    if string is None:
         return False
 
     if re.search(p, string):
@@ -22,4 +22,5 @@ def is_valid_hex(string: str) -> bool:
 
 
 def hex_to_rgb(h: str) -> Tuple[int, int, int]:
-    return ImageColor.getcolor(h, "RGB")
+    clr: Any = ImageColor.getcolor(h, "RGB")
+    return (clr[0], clr[1], clr[2])
