@@ -95,6 +95,14 @@ class GStateColorMapper(Enum, metaclass=GStateColorMapperMeta):
 
     String values HAS to be in hex format.
     Int values HAS to be less than count of all key in enum
+
+    Examples
+    --------
+    >>> class TestState(GStateColorMapper): Online = "#fff"; Offline = 1
+    >>> TestState.Online._get_color
+    (255, 255, 255, 255)
+    >>> TestState.Offline._get_color
+    (64, 128, 128, 255)
     """
     def __get__(self, instance, owner):
         return self.__class__.__members__[self.name]
