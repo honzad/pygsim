@@ -1,4 +1,4 @@
-from pysg.drawing import GStateColorMapper
+from pysg.drawing import GStateColorMapper, GDrawable
 from pysg.core import GSimulationObject, GEnvironment
 
 
@@ -7,10 +7,11 @@ class TestState(GStateColorMapper):
     Offline = 1
 
 
-class TestObject(GSimulationObject):
-    Test = 1
-
+class TestObject(GSimulationObject, GDrawable):
     def life_cycle(self):
+        pass
+
+    def draw(self, screen) -> None:
         pass
 
 
@@ -21,4 +22,5 @@ if __name__ == "__main__":
     print(type(TestState.Online))
     env = GEnvironment()
     obj = TestObject(env, states=TestState)
+    env.add_drawable(obj)
     pass

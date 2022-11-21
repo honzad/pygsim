@@ -7,7 +7,9 @@ from simpy.rt import RealtimeEnvironment
 import pygame
 from pygame.surface import Surface
 
-from pysg.drawing import GShape, GShapeType, GStateColorMapper, GStateColorMapperMeta
+from pysg.drawing import (
+    GShape, GShapeType, GStateColorMapper, GStateColorMapperMeta, GDrawable
+)
 
 
 class GSimulationSpeed(Enum):
@@ -56,7 +58,7 @@ class GEnvironment(RealtimeEnvironment):
         self._on_pygame_quit = self.event()
         self._background_color = background_color
         self._screen: Surface = pygame.display.set_mode(self._resolution)
-        self._draw_callbacks: List[GSimulationObject] = []
+        self._draw_callbacks: List[GDrawable] = []
 
         if auto_run:
             self.run()
@@ -79,10 +81,10 @@ class GEnvironment(RealtimeEnvironment):
             pygame.display.flip()
             # Or use update in each draw calls to only specific parts
 
-    def add_drawable(self, callable: "GSimulationObject"):
+    def add_drawable(self, callable: GDrawable):
         pass
 
-    def remove_drawable(self, callable: "GSimulationObject"):
+    def remove_drawable(self, callable: GDrawable):
         pass
 
     def _is_quit_requested(self) -> bool:
@@ -173,25 +175,6 @@ class GSimulationObject(ABC):
 
         if auto_run:
             self.run()
-
-    def __call__(self, screen: Surface) -> None:
-        """Calls the drawing function when class called as function
-
-        :param screen: Screen to draw this object on
-        :type screen: pygame.Surface
-        """
-        self.draw(screen)
-
-    def draw(self, screen: Surface) -> None:
-        """Drawing function, can be overidden.
-
-        This draw call function is called `fps` times per second as \
-            specified in :class:`~pysg.environment.GEnvironment` .
-
-        :param screen: Screen to draw this object on
-        :type screen: pygame.Surface
-        """
-        pass
 
     @abstractmethod
     def life_cycle(self):
