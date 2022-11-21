@@ -1,4 +1,4 @@
 from .shape import GShape, GShapeType
-from .color import GStateColorMapper
+from .color import GStateColorMapper, GStateColorMapperMeta
 
-__all__ = ["GStateColorMapper", "GShape", "GShapeType"]
+__all__ = ["GStateColorMapper", "GStateColorMapperMeta", "GShape", "GShapeType"]

@@ -7,7 +7,7 @@ from simpy.rt import RealtimeEnvironment
 import pygame
 from pygame.surface import Surface
 
-from pysg.drawing import GShape, GShapeType
+from pysg.drawing import GShape, GShapeType, GStateColorMapper, GStateColorMapperMeta
 
 
 class GSimulationSpeed(Enum):
@@ -139,14 +139,14 @@ class GSimulationObject(ABC):
     :param env: Graphical envirioment.
     :type env: :class:`~pysg.environment.GEnvironment`
     :param states: User defined state to color mapper created \
-        with :func:`~pysg.drawing.generate_state_color_enum`.
+        with class inherited from :class:`~pysg.drawing.GStateColorMapper`.
     :type states: EnumMeta
     :param shape: What shape should the simulated object be drawn as.
     :type shape: :class:`~pysg.drawing.GShape`, defaults \
         to GShape(GShapeType.Circle, 10)
     :param default_state: Default state of user defined mapper, defaults \
         to None (select the first in Enum).
-    :type default_state: Enum, optional
+    :type default_state: GStateColorMapper, optional
     :param auto_run: Specifies if the simulation will start on it self, or if it \
         needs to be started via ``.run()`` elsewhere, defaults to False
     :type auto_run: bool, optional
@@ -157,16 +157,19 @@ class GSimulationObject(ABC):
     def __init__(
         self,
         env: GEnvironment,
-        states: EnumMeta,
-        shape: GShape = GShape(GShapeType.Circle, 10),
-        default_state: Union[Enum, None] = None,
+        states: GStateColorMapperMeta,
+        shape: Union[GShape, None] = None,
+        default_state: Union[GStateColorMapper, None] = None,
         auto_run=False,
     ) -> None:
         self._id = next(self._object_id_counter)
         self._env = env
         self._states = states
         self.current_state = default_state
-        self.shape = shape
+        if shape is None:
+            self.shape = GShape(GShapeType.Circle, 10)
+        else:
+            self.shape = shape
 
         if auto_run:
             self.run()
