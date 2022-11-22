@@ -1,5 +1,5 @@
 from .shape import GShape, GShapeType
-from .color import GStateColorMapper, GStateColorMapperMeta
+from .color import GStateColorMapper, GStateColorMapperMeta, DefaultColors
 from .drawable import GDrawable
 
 __all__ = [
@@ -7,5 +7,6 @@ __all__ = [
     "GStateColorMapperMeta",
     "GShape",
     "GShapeType",
-    "GDrawable"
+    "GDrawable",
+    "DefaultColors",
 ]

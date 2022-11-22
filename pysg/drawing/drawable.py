@@ -5,6 +5,7 @@ from pygame.surface import Surface
 
 class GDrawable(ABC):
     """Base class providing drawable functions to simulation classes"""
+
     def __call__(self, screen: Surface) -> None:
         """Calls the drawing function when class called as function
 

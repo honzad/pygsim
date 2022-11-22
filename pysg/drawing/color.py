@@ -4,7 +4,7 @@ import math
 from typing import Dict, Union, Tuple, List
 import pygame
 
-from pysg.util import clamp, is_valid_hex, hex_to_rgb
+from ..util import clamp, is_valid_hex, hex_to_rgb
 
 
 def validate_enumerations(d: Dict[str, Union[str, int]]) -> None:
@@ -72,6 +72,7 @@ def color_enumerations_to_colors(
 
 class GStateColorMapperMeta(EnumMeta):
     """Meta class for :class:`~.GStateColorMapper`"""
+
     def __new__(cls, cls_str: str, bases, classdict, **kwds):
         enumerations = {x: y for x, y in classdict.items() if not x.startswith("_")}
         validate_enumerations(enumerations)
@@ -104,6 +105,7 @@ class GStateColorMapper(Enum, metaclass=GStateColorMapperMeta):
     >>> TestState.Offline._get_color
     (64, 128, 128, 255)
     """
+
     def __get__(self, instance, owner):
         return self.__class__.__members__[self.name]
 
@@ -114,3 +116,14 @@ class GStateColorMapper(Enum, metaclass=GStateColorMapperMeta):
     @property
     def _get_color(self) -> pygame.Color:
         return self.__class__._colors[self.name]  # type: ignore
+
+
+class DefaultColors(GStateColorMapper):
+    White = "#fff"
+    Black = "#000"
+    Red = "#FF0000"
+    Green = "#00FF00"
+    Blue = "#0000FF"
+    LightBlue = "#ADD8E6"
+    Yellow = "#FFFF00"
+    Orange = "#FFA500"

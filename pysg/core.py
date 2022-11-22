@@ -1,5 +1,5 @@
-from typing import List, Union
-from enum import Enum, EnumMeta
+from typing import List, Union, Optional
+from enum import Enum
 from itertools import count
 from abc import ABC, abstractmethod
 
@@ -7,14 +7,19 @@ from simpy.rt import RealtimeEnvironment
 import pygame
 from pygame.surface import Surface
 
-from pysg.drawing import (
-    GShape, GShapeType, GStateColorMapper, GStateColorMapperMeta, GDrawable
+from .drawing import (
+    GShape,
+    GShapeType,
+    GStateColorMapper,
+    GStateColorMapperMeta,
+    GDrawable,
 )
 
 
 class GSimulationSpeed(Enum):
-    """Simulation speed enum, where each value is multiplier of normal simulation speed
-    """
+    """Simulation speed enum, where each value is multiplier \
+        of normal simulation speed"""
+
     Real = 1
     Slow = 2
     Fast = 5
@@ -135,8 +140,15 @@ class GSimulationObject(ABC):
     """Base graphical simulation object.
 
     Has to be inherited and customized with custom \
-        :func:`~pysg.core.GSimulationObject.life_cycle` method, \
-        and :func:`~pysg.core.GSimulationObject.draw` if needed.
+        :func:`~pysg.core.GSimulationObject.life_cycle` method.
+
+    :func:`~pysg.core.GSimulationObject.States` should be overriden in \
+        inherited class as follows: 'States = SomeStateMapper', this \
+        will set the default param states for all instances
+
+    :func:`~pysg.core.GSimulationObject.Shape` can be overriden in \
+        inherited class as follows: 'Shape = SomeShapeObject', this \
+        will set the default param shape for all instances
 
     :param env: Graphical envirioment.
     :type env: :class:`~pysg.environment.GEnvironment`
@@ -159,31 +171,21 @@ class GSimulationObject(ABC):
     def __init__(
         self,
         env: GEnvironment,
-        states: GStateColorMapperMeta,
-        shape: Union[GShape, None] = None,
-        default_state: Union[GStateColorMapper, None] = None,
+        states: Optional[GStateColorMapperMeta] = None,
+        shape: Optional[GShape] = None,
+        default_state: Optional[GStateColorMapper] = None,
         auto_run=False,
     ) -> None:
         self._id = next(self._object_id_counter)
         self._env = env
-        self._states = states
-        self.current_state = default_state
-        if shape is None:
-            self.shape = GShape(GShapeType.Circle, 10)
-        else:
-            self.shape = shape
+        self._states = self._set_states(states)
+        self._current_state = self._set_current_state(default_state)
+        self._shape = self._set_shape(shape)
 
         if auto_run:
             self.run()
 
-    @abstractmethod
-    def life_cycle(self):
-        """Simulation life cycle. **Has to be overidden**"""
-        yield self._env.timeout(1)
-
-    def run(self) -> None:
-        """Starts objects simulation"""
-        self._env.process(self.life_cycle())
+    # Properities
 
     @property
     def id(self) -> int:
@@ -205,24 +207,81 @@ class GSimulationObject(ABC):
         self._shape = s
 
     @property
-    def states(self) -> EnumMeta:
+    def states(self) -> GStateColorMapperMeta:
         return self._states
 
     @property
-    def current_state(self) -> Enum:
+    def current_state(self) -> GStateColorMapper:
         return self._current_state
 
     @current_state.setter
-    def current_state(self, s: Union[Enum, None]) -> None:
-        if s is None:
-            self._current_state = list(self._states._value2member_map_.values())[0]
-        elif isinstance(s, Enum):
+    def current_state(self, s: Optional[GStateColorMapper]) -> None:
+        self._current_state = self._set_current_state(s)
+
+    # Overridable
+
+    @property
+    def States(self) -> Optional[GStateColorMapperMeta]:
+        """State to color mapper variable. **HAS to be overidden!**"""
+        # Pylint will not support correct typing so we have to use # type: ignore
+        # at destination declaration, for instance.
+        # States = TestState  # type: ignore
+        return None
+
+    @property
+    def Shape(self) -> Optional[GShape]:
+        """Default shape for this instance. (can be overidden)"""
+        # Pylint will not support correct typing so we have to use # type: ignore
+        # at destination declaration, for instance.
+        # Shape = GShape(GShapeType.Circle, 10)  # type: ignore
+        return None
+
+    @abstractmethod
+    def life_cycle(self):
+        """Simulation life cycle. **HAS to be overidden!**"""
+        yield self._env.timeout(1)
+
+    # Simulation
+
+    def run(self) -> None:
+        """Starts objects simulation"""
+        self._env.process(self.life_cycle())
+
+    # Helpers
+
+    def _set_states(
+        self, states: Optional[GStateColorMapperMeta]
+    ) -> GStateColorMapperMeta:
+        if (states is not None) and (self.States is not None):
+            raise ValueError("Additional state mapper declared in constructor")
+
+        if states is None:
+            if self.States is None:
+                raise ValueError(
+                    "No state mapper declared in constructor or instance variable"
+                )
+            return self.States
+        return states
+
+    def _set_current_state(
+        self, state: Optional[GStateColorMapper]
+    ) -> GStateColorMapper:
+        if state is None:
+            return list(self._states._value2member_map_.values())[0]  # type: ignore
+        elif isinstance(state, GStateColorMapper):
             vals = [v.name for v in self._states._value2member_map_.values()]
-            if s.name not in vals:
+            if state.name not in vals:
                 raise ValueError("Invalid state value supplied")
-            self._current_state = s
+            return state
         else:
             raise ValueError("Invalid state type supplied")
+
+    def _set_shape(self, shape: Optional[GShape]) -> GShape:
+        if shape is None:
+            if self.Shape is None:
+                return GShape(GShapeType.Circle, 10, -1, pygame.Color(255, 255, 255))
+            return self.Shape
+        return shape
 
 
 # yield from
