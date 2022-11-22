@@ -65,6 +65,7 @@ class GContainerBase(ABC):
         self._overflow = overflow
         self._padding = padding
         self._spacing = spacing
+        self._max_object_size = 0
 
     def __len__(self):
         return len(self._objects)
@@ -178,11 +179,13 @@ class GContainerBase(ABC):
         if f"{id(obj)}" in self._objects:
             raise Exception("Object already in this container")
         self._objects[f"{id(obj)}"] = obj
+        self._max_object_size = self._set_max_object_size()
 
     def leave(self, obj: GDrawable):
         if f"{id(obj)}" not in self._objects:
             raise Exception("Object not in this container")
         del self._objects[f"{id(obj)}"]
+        self._max_object_size = self._set_max_object_size()
 
     # Helpers
 
@@ -190,6 +193,12 @@ class GContainerBase(ABC):
         if s is None:
             return GShape(GShapeType.Square, 10, 2, DefaultColors.White._get_color)
         return s
+
+    def _set_max_object_size(self) -> int:
+        obj_entries: List[GDrawable] = list(self._objects.values())
+        biggest_size = list(map(lambda o: o.shape.size, obj_entries))
+        biggest_size.sort(reverse=True)
+        return biggest_size[0]
 
 
 class GContainerRow(GContainerBase, GDrawable):
@@ -251,21 +260,18 @@ class GContainerRow(GContainerBase, GDrawable):
             return
 
         obj_entries: List[GDrawable] = list(self._objects.values())
-        biggest_size = list(map(lambda o: o.shape.size, obj_entries))
-        biggest_size.sort(reverse=True)
-        biggest_size = biggest_size[0]
 
         for i, o in enumerate(obj_entries):
             size = o.shape.size
             x_l = (
-                (x + (i * biggest_size) + (i * self._spacing) + self._padding)
+                (x + (i * self._max_object_size) + (i * self._spacing) + self._padding)
                 if self._fill_direction == GFillDirection.Left
                 else (
                     (x + width)
-                    - (i * biggest_size)
+                    - (i * self._max_object_size)
                     - (i * self._spacing)
                     - self._padding
-                    - biggest_size
+                    - self._max_object_size
                 )
             )
             y_l = y + self._padding
@@ -275,7 +281,7 @@ class GContainerRow(GContainerBase, GDrawable):
                     if x_l < x:
                         continue
                 else:
-                    if x_l + biggest_size > x + self._size[0]:
+                    if x_l + self._max_object_size > x + self._size[0]:
                         continue
 
             f_rect = (
@@ -296,8 +302,8 @@ class GContainerRow(GContainerBase, GDrawable):
             screen.blit(
                 text_surface,
                 (
-                    f_rect.center[0] - (biggest_size / 4),
-                    f_rect.center[1] - (biggest_size / 4),
+                    f_rect.center[0] - (self._max_object_size / 4),
+                    f_rect.center[1] - (self._max_object_size / 4),
                 ),
             )
 
@@ -361,22 +367,19 @@ class GContainerColumn(GContainerBase, GDrawable):
             return
 
         obj_entries: List[GDrawable] = list(self._objects.values())
-        biggest_size = list(map(lambda o: o.shape.size, obj_entries))
-        biggest_size.sort(reverse=True)
-        biggest_size = biggest_size[0]
 
         for i, o in enumerate(obj_entries):
             size = o.shape.size
             x_l = x + self._padding
             y_l = (
-                (y + (i * biggest_size) + (i * self._spacing) + self._padding)
+                (y + (i * self._max_object_size) + (i * self._spacing) + self._padding)
                 if self._fill_direction == GFillDirection.Left
                 else (
                     (y + height)
-                    - (i * biggest_size)
+                    - (i * self._max_object_size)
                     - (i * self._spacing)
                     - self._padding
-                    - biggest_size
+                    - self._max_object_size
                 )
             )
 
@@ -385,7 +388,7 @@ class GContainerColumn(GContainerBase, GDrawable):
                     if y_l < y:
                         continue
                 else:
-                    if y_l + biggest_size > y + self._size[1]:
+                    if y_l + self._max_object_size > y + self._size[1]:
                         continue
 
             f_rect = (
@@ -406,8 +409,8 @@ class GContainerColumn(GContainerBase, GDrawable):
             screen.blit(
                 text_surface,
                 (
-                    f_rect.center[0] - (biggest_size / 4),
-                    f_rect.center[1] - (biggest_size / 4),
+                    f_rect.center[0] - (self._max_object_size / 4),
+                    f_rect.center[1] - (self._max_object_size / 4),
                 ),
             )
 
@@ -471,22 +474,19 @@ class GcontainerGrid(GContainerBase, GDrawable):
             return
 
         obj_entries: List[GDrawable] = list(self._objects.values())
-        biggest_size = list(map(lambda o: o.shape.size, obj_entries))
-        biggest_size.sort(reverse=True)
-        biggest_size = biggest_size[0]
 
         max_grid_w = 0
         # max_grid_h = 0
         obj_entries_chunked: List[List[GDrawable]] = []
 
-        max_grid_w = math.floor(width / (biggest_size + self._spacing))
+        max_grid_w = math.floor(width / (self._max_object_size + self._spacing))
         obj_entries_chunked = list(array_chunks(obj_entries, max_grid_w))
 
         # if width >= height:
-        #     max_grid_w = math.floor(width / (biggest_size + self._spacing))
+        #     max_grid_w = math.floor(width / (self._max_object_size + self._spacing))
         #     obj_entries_chunked = list(array_chunks(obj_entries, max_grid_w))
         # elif height > width:
-        #     max_grid_h = math.floor(height / (biggest_size + self._spacing))
+        #     max_grid_h = math.floor(height / (self._max_object_size + self._spacing))
         #     obj_entries_chunked = list(array_chunks(obj_entries, max_grid_h))
 
         for j, o_a in enumerate(obj_entries_chunked):
@@ -496,56 +496,75 @@ class GcontainerGrid(GContainerBase, GDrawable):
                 y_l = 0
 
                 if self._fill_direction == GFillDirection.TopLeft:
-                    x_l = x + (i * biggest_size) + (i * self._spacing) + self._padding
-                    y_l = y + (j * biggest_size) + (j * self._spacing) + self._padding
+                    x_l = (
+                        x
+                        + (i * self._max_object_size)
+                        + (i * self._spacing)
+                        + self._padding
+                    )
+                    y_l = (
+                        y
+                        + (j * self._max_object_size)
+                        + (j * self._spacing)
+                        + self._padding
+                    )
                 elif self._fill_direction == GFillDirection.TopRight:
                     x_l = (
                         (x + width)
-                        - (i * biggest_size)
+                        - (i * self._max_object_size)
                         - (i * self._spacing)
                         - self._padding
-                        - biggest_size
+                        - self._max_object_size
                     )
-                    y_l = y + (j * biggest_size) + (j * self._spacing) + self._padding
+                    y_l = (
+                        y
+                        + (j * self._max_object_size)
+                        + (j * self._spacing)
+                        + self._padding
+                    )
                 elif self._fill_direction == GFillDirection.BottomLeft:
-                    x_l = x + (i * biggest_size) + (i * self._spacing) + self._padding
+                    x_l = (
+                        x
+                        + (i * self._max_object_size)
+                        + (i * self._spacing)
+                        + self._padding
+                    )
                     y_l = (
                         (y + height)
-                        - (j * biggest_size)
+                        - (j * self._max_object_size)
                         - (j * self._spacing)
                         - self._padding
-                        - biggest_size
+                        - self._max_object_size
                     )
                 elif self._fill_direction == GFillDirection.BottomRight:
                     x_l = (
                         (x + width)
-                        - (i * biggest_size)
+                        - (i * self._max_object_size)
                         - (i * self._spacing)
                         - self._padding
-                        - biggest_size
+                        - self._max_object_size
                     )
                     y_l = (
                         (y + height)
-                        - (j * biggest_size)
+                        - (j * self._max_object_size)
                         - (j * self._spacing)
                         - self._padding
-                        - biggest_size
+                        - self._max_object_size
                     )
 
                 if self._overflow == GOverflow.Hidden:
                     if self._fill_direction == GFillDirection.TopLeft:
-                        if x_l + biggest_size > x + self._size[0]:
+                        if x_l + self._max_object_size > x + self._size[0]:
                             continue
-
-                        if y_l + biggest_size > y + self.size[1]:
+                        if y_l + self._max_object_size > y + self.size[1]:
                             continue
                     elif self._fill_direction == GFillDirection.TopRight:
                         if x_l < x:
                             continue
-                        if y_l + biggest_size > y + self.size[1]:
+                        if y_l + self._max_object_size > y + self.size[1]:
                             continue
                     elif self._fill_direction == GFillDirection.BottomLeft:
-                        if x_l + biggest_size > x + self._size[0]:
+                        if x_l + self._max_object_size > x + self._size[0]:
                             continue
                         if y_l < y:
                             continue
@@ -575,7 +594,7 @@ class GcontainerGrid(GContainerBase, GDrawable):
                 screen.blit(
                     text_surface,
                     (
-                        f_rect.center[0] - (biggest_size / 4),
-                        f_rect.center[1] - (biggest_size / 4),
+                        f_rect.center[0] - (self._max_object_size / 4),
+                        f_rect.center[1] - (self._max_object_size / 4),
                     ),
                 )
