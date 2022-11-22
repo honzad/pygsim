@@ -1,19 +1,15 @@
 from typing import List, Union, Optional
 from enum import Enum
 from itertools import count
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 from simpy.rt import RealtimeEnvironment
 import pygame
 from pygame.surface import Surface
 
-from .drawing import (
-    GShape,
-    GShapeType,
-    GStateColorMapper,
-    GStateColorMapperMeta,
-    GDrawable,
-)
+from .drawing.color import GStateColorMapper, GStateColorMapperMeta
+from .drawing.drawable import GDrawable
+from .drawing.shape import GShape
 
 
 class GSimulationSpeed(Enum):
@@ -87,10 +83,17 @@ class GEnvironment(RealtimeEnvironment):
             # Or use update in each draw calls to only specific parts
 
     def add_drawable(self, callable: GDrawable):
-        pass
+        self._draw_callbacks.append(callable)
 
     def remove_drawable(self, callable: GDrawable):
-        pass
+        targetId = -1
+        for index, item in enumerate(self._draw_callbacks):
+            if id(item) == id(callable):
+                targetId = index
+                break
+
+        if targetId != -1:
+            self._draw_callbacks.pop(targetId)
 
     def _is_quit_requested(self) -> bool:
         """Checks if there is pygame quit event happening
@@ -136,7 +139,7 @@ def get_factor_from_speed(
     return factor
 
 
-class GSimulationObject(ABC):
+class GSimulationObject(GDrawable):
     """Base graphical simulation object.
 
     Has to be inherited and customized with custom \
@@ -172,15 +175,16 @@ class GSimulationObject(ABC):
         self,
         env: GEnvironment,
         states: Optional[GStateColorMapperMeta] = None,
-        shape: Optional[GShape] = None,
         default_state: Optional[GStateColorMapper] = None,
+        shape: Optional[GShape] = None,
         auto_run=False,
     ) -> None:
         self._id = next(self._object_id_counter)
         self._env = env
         self._states = self._set_states(states)
         self._current_state = self._set_current_state(default_state)
-        self._shape = self._set_shape(shape)
+
+        super().__init__(shape)
 
         if auto_run:
             self.run()
@@ -190,21 +194,6 @@ class GSimulationObject(ABC):
     @property
     def id(self) -> int:
         return self._id
-
-    @property
-    def shape(self) -> GShape:
-        return self._shape
-
-    @shape.setter
-    def shape(self, s: GShape) -> None:
-        if s.size <= 0:
-            raise ValueError("Zero or negative size of a shape supplied")
-
-        vals = [v.name for v in GShapeType]
-        if s.shape_type.name not in vals:
-            raise ValueError("Invalid shape type supplied")
-
-        self._shape = s
 
     @property
     def states(self) -> GStateColorMapperMeta:
@@ -226,14 +215,6 @@ class GSimulationObject(ABC):
         # Pylint will not support correct typing so we have to use # type: ignore
         # at destination declaration, for instance.
         # States = TestState  # type: ignore
-        return None
-
-    @property
-    def Shape(self) -> Optional[GShape]:
-        """Default shape for this instance. (can be overidden)"""
-        # Pylint will not support correct typing so we have to use # type: ignore
-        # at destination declaration, for instance.
-        # Shape = GShape(GShapeType.Circle, 10)  # type: ignore
         return None
 
     @abstractmethod
@@ -275,13 +256,6 @@ class GSimulationObject(ABC):
             return state
         else:
             raise ValueError("Invalid state type supplied")
-
-    def _set_shape(self, shape: Optional[GShape]) -> GShape:
-        if shape is None:
-            if self.Shape is None:
-                return GShape(GShapeType.Circle, 10, -1, pygame.Color(255, 255, 255))
-            return self.Shape
-        return shape
 
 
 # yield from

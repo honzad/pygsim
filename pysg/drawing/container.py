@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, List
 from itertools import count
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -7,7 +7,6 @@ import pygame
 from pygame.surface import Surface
 
 from .drawable import GDrawable
-from ..core import GSimulationObject
 from .color import DefaultColors
 from .shape import GShape, GShapeType
 
@@ -37,7 +36,7 @@ class GFillDirection(Enum):
 class GOverflow(Enum):
     Visible = 0
     Hidden = 1
-    Clip = 2
+    # Clip = 2
 
 
 class GContainerBase(ABC):
@@ -51,15 +50,17 @@ class GContainerBase(ABC):
         align: GAlign = GAlign.NoAlign,
         fill_direction: GFillDirection = GFillDirection.TopLeft,
         overflow: GOverflow = GOverflow.Visible,
+        padding: int = 5
     ) -> None:
         self._id = next(self._object_id_counter)
-        self._objects: Dict[str, GSimulationObject] = {}
+        self._objects: Dict[str, GDrawable] = {}
         self._size = size
         self._position = position
         self._shape = self._set_shape(shape)
         self._align = align
         self._fill_direction = fill_direction
         self._overflow = overflow
+        self._padding = padding
 
     def __len__(self):
         return len(self._objects)
@@ -145,17 +146,28 @@ class GContainerBase(ABC):
 
         self._overflow = o
 
+    @property
+    def padding(self) -> int:
+        return self._padding
+
+    @padding.setter
+    def padding(self, p: int):
+        if p < 0:
+            raise ValueError("Negative padding supplied")
+
+        self._padding = p
+
     # Main functionality
 
-    def enter(self, obj: GSimulationObject):
-        if f"{obj.id}" in self._objects:
+    def enter(self, obj: GDrawable):
+        if f"{id(obj)}" in self._objects:
             raise Exception("Object already in this container")
-        self._objects[f"{obj.id}"] = obj
+        self._objects[f"{id(obj)}"] = obj
 
-    def leave(self, obj: GSimulationObject):
-        if f"{obj.id}" not in self._objects:
+    def leave(self, obj: GDrawable):
+        if f"{id(obj)}" not in self._objects:
             raise Exception("Object not in this container")
-        del self._objects[f"{obj.id}"]
+        del self._objects[f"{id(obj)}"]
 
     # Helpers
 
@@ -186,7 +198,55 @@ class GContainerRow(GContainerBase, GDrawable):
         self._fill_direction = n_f
 
     def draw(self, screen: Surface) -> None:
-        pass
+        x, y = self._position
+        width, height = self._size
+
+        if self._shape.shape_type == GShapeType.Square:
+            pygame.draw.rect(
+                screen,
+                DefaultColors.White._get_color,
+                pygame.Rect(x, y, width, height),
+                self.shape.border_size,
+            )
+        else:
+            pygame.draw.ellipse(
+                screen,
+                DefaultColors.White._get_color,
+                pygame.Rect(x, y, width, height),
+                self.shape.border_size,
+            )
+
+        if len(self._objects) == 0:
+            return
+
+        obj_entries: List[GDrawable] = list(self._objects.values())
+        biggest_size = list(map(lambda o: o.shape.size, obj_entries))
+        biggest_size.sort(reverse=True)
+        biggest_size = biggest_size[0]
+
+        spacer = 5  # TODO: Replace for global
+
+        for i, o in enumerate(obj_entries):
+            size = o.shape.size
+            x_l = x + (i * biggest_size) + (i * spacer) + self._padding
+            x_r = y + self._padding
+
+            if self._overflow == GOverflow.Hidden:
+                if x_l > self._size[0]:
+                    continue
+
+            if o.shape.shape_type == GShapeType.Square:
+                pygame.draw.rect(
+                    screen,
+                    o.shape.color,
+                    pygame.Rect(x_l, x_r, size, size),
+                )
+            else:
+                pygame.draw.ellipse(
+                    screen,
+                    o.shape.color,
+                    pygame.Rect(x_l, x_r, size, size),
+                )
 
 
 class GContainerColumn(GContainerBase, GDrawable):
@@ -228,15 +288,4 @@ class GcontainerGrid(GContainerBase, GDrawable):
         self._fill_direction = f
 
     def draw(self, screen: Surface) -> None:
-        x, y = self._position
-        width, height = self._size
-
-        back_rect = (
-            pygame.draw.rect(
-                screen, DefaultColors.White._get_color, pygame.Rect(x, y, width, height)
-            )
-            if self._shape.shape_type == GShapeType.Square
-            else pygame.draw.ellipse(
-                screen, DefaultColors.White._get_color, pygame.Rect(x, y, width, height)
-            )
-        )
+        pass
