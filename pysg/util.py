@@ -1,6 +1,6 @@
 import re
 from PIL import ImageColor
-from typing import Tuple, Any
+from typing import Tuple, Any, List, TypeVar
 
 
 def clamp(num, min_value, max_value):
@@ -24,3 +24,11 @@ def is_valid_hex(string: str) -> bool:
 def hex_to_rgb(h: str) -> Tuple[int, int, int]:
     clr: Any = ImageColor.getcolor(h, "RGB")
     return (clr[0], clr[1], clr[2])
+
+
+T = TypeVar("T")
+
+
+def array_chunks(arr: List[T], n: int):
+    for i in range(0, len(arr), n):
+        yield arr[i : i + n]

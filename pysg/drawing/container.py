@@ -2,6 +2,7 @@ from typing import Dict, Tuple, Optional, List
 from itertools import count
 from abc import ABC, abstractmethod
 from enum import Enum
+import math
 
 import pygame
 from pygame.surface import Surface
@@ -9,6 +10,7 @@ from pygame.surface import Surface
 from .drawable import GDrawable
 from .color import DefaultColors
 from .shape import GShape, GShapeType
+from ..util import array_chunks
 
 
 class GAlign(Enum):
@@ -50,7 +52,8 @@ class GContainerBase(ABC):
         align: GAlign = GAlign.NoAlign,
         fill_direction: GFillDirection = GFillDirection.TopLeft,
         overflow: GOverflow = GOverflow.Visible,
-        padding: int = 5
+        padding: int = 5,
+        spacing: int = 5,
     ) -> None:
         self._id = next(self._object_id_counter)
         self._objects: Dict[str, GDrawable] = {}
@@ -61,6 +64,7 @@ class GContainerBase(ABC):
         self._fill_direction = fill_direction
         self._overflow = overflow
         self._padding = padding
+        self._spacing = spacing
 
     def __len__(self):
         return len(self._objects)
@@ -157,6 +161,17 @@ class GContainerBase(ABC):
 
         self._padding = p
 
+    @property
+    def spacing(self) -> int:
+        return self._spacing
+
+    @spacing.setter
+    def spacing(self, s: int):
+        if s < 0:
+            raise ValueError("Negative spacing supplied")
+
+        self._spacing = s
+
     # Main functionality
 
     def enter(self, obj: GDrawable):
@@ -178,6 +193,22 @@ class GContainerBase(ABC):
 
 
 class GContainerRow(GContainerBase, GDrawable):
+    def __init__(
+        self,
+        size: Tuple[int, int],
+        position: Tuple[int, int],
+        shape: Optional[GShape] = None,
+        align: GAlign = GAlign.NoAlign,
+        fill_direction: GFillDirection = GFillDirection.TopLeft,
+        overflow: GOverflow = GOverflow.Visible,
+        padding: int = 5,
+    ) -> None:
+        super().__init__(
+            size, position, shape, align, overflow=overflow, padding=padding
+        )
+        self.fill_direction = fill_direction
+        self._font = pygame.font.SysFont("Comic Sans MS", 10)
+
     @GContainerBase.fill_direction.setter
     def fill_direction(self, f: GFillDirection):
         if not isinstance(f, GFillDirection):
@@ -224,32 +255,70 @@ class GContainerRow(GContainerBase, GDrawable):
         biggest_size.sort(reverse=True)
         biggest_size = biggest_size[0]
 
-        spacer = 5  # TODO: Replace for global
-
         for i, o in enumerate(obj_entries):
             size = o.shape.size
-            x_l = x + (i * biggest_size) + (i * spacer) + self._padding
-            x_r = y + self._padding
+            x_l = (
+                (x + (i * biggest_size) + (i * self._spacing) + self._padding)
+                if self._fill_direction == GFillDirection.Left
+                else (
+                    (x + width)
+                    - (i * biggest_size)
+                    - (i * self._spacing)
+                    - self._padding
+                    - biggest_size
+                )
+            )
+            y_l = y + self._padding
 
             if self._overflow == GOverflow.Hidden:
-                if x_l > self._size[0]:
-                    continue
+                if self._fill_direction == GFillDirection.Right:
+                    if x_l < x:
+                        continue
+                else:
+                    if x_l + biggest_size > x + self._size[0]:
+                        continue
 
-            if o.shape.shape_type == GShapeType.Square:
+            f_rect = (
                 pygame.draw.rect(
                     screen,
                     o.shape.color,
-                    pygame.Rect(x_l, x_r, size, size),
+                    pygame.Rect(x_l, y_l, size, size),
                 )
-            else:
-                pygame.draw.ellipse(
+                if o.shape.shape_type == GShapeType.Square
+                else pygame.draw.ellipse(
                     screen,
                     o.shape.color,
-                    pygame.Rect(x_l, x_r, size, size),
+                    pygame.Rect(x_l, y_l, size, size),
                 )
+            )
+
+            text_surface = self._font.render(f"{o.id}", 1, (0, 0, 0))  # type: ignore
+            screen.blit(
+                text_surface,
+                (
+                    f_rect.center[0] - (biggest_size / 4),
+                    f_rect.center[1] - (biggest_size / 4),
+                ),
+            )
 
 
 class GContainerColumn(GContainerBase, GDrawable):
+    def __init__(
+        self,
+        size: Tuple[int, int],
+        position: Tuple[int, int],
+        shape: Optional[GShape] = None,
+        align: GAlign = GAlign.NoAlign,
+        fill_direction: GFillDirection = GFillDirection.TopLeft,
+        overflow: GOverflow = GOverflow.Visible,
+        padding: int = 5,
+    ) -> None:
+        super().__init__(
+            size, position, shape, align, overflow=overflow, padding=padding
+        )
+        self.fill_direction = fill_direction
+        self._font = pygame.font.SysFont("Comic Sans MS", 10)
+
     @GContainerBase.fill_direction.setter
     def fill_direction(self, f: GFillDirection):
         if not isinstance(f, GFillDirection):
@@ -270,10 +339,96 @@ class GContainerColumn(GContainerBase, GDrawable):
         self._fill_direction = n_f
 
     def draw(self, screen: Surface) -> None:
-        pass
+        x, y = self._position
+        width, height = self._size
+
+        if self._shape.shape_type == GShapeType.Square:
+            pygame.draw.rect(
+                screen,
+                DefaultColors.White._get_color,
+                pygame.Rect(x, y, width, height),
+                self.shape.border_size,
+            )
+        else:
+            pygame.draw.ellipse(
+                screen,
+                DefaultColors.White._get_color,
+                pygame.Rect(x, y, width, height),
+                self.shape.border_size,
+            )
+
+        if len(self._objects) == 0:
+            return
+
+        obj_entries: List[GDrawable] = list(self._objects.values())
+        biggest_size = list(map(lambda o: o.shape.size, obj_entries))
+        biggest_size.sort(reverse=True)
+        biggest_size = biggest_size[0]
+
+        for i, o in enumerate(obj_entries):
+            size = o.shape.size
+            x_l = x + self._padding
+            y_l = (
+                (y + (i * biggest_size) + (i * self._spacing) + self._padding)
+                if self._fill_direction == GFillDirection.Left
+                else (
+                    (y + height)
+                    - (i * biggest_size)
+                    - (i * self._spacing)
+                    - self._padding
+                    - biggest_size
+                )
+            )
+
+            if self._overflow == GOverflow.Hidden:
+                if self._fill_direction == GFillDirection.Right:
+                    if y_l < y:
+                        continue
+                else:
+                    if y_l + biggest_size > y + self._size[1]:
+                        continue
+
+            f_rect = (
+                pygame.draw.rect(
+                    screen,
+                    o.shape.color,
+                    pygame.Rect(x_l, y_l, size, size),
+                )
+                if o.shape.shape_type == GShapeType.Square
+                else pygame.draw.ellipse(
+                    screen,
+                    o.shape.color,
+                    pygame.Rect(x_l, y_l, size, size),
+                )
+            )
+
+            text_surface = self._font.render(f"{o.id}", 1, (0, 0, 0))  # type: ignore
+            screen.blit(
+                text_surface,
+                (
+                    f_rect.center[0] - (biggest_size / 4),
+                    f_rect.center[1] - (biggest_size / 4),
+                ),
+            )
 
 
 class GcontainerGrid(GContainerBase, GDrawable):
+    def __init__(
+        self,
+        size: Tuple[int, int],
+        position: Tuple[int, int],
+        shape: Optional[GShape] = None,
+        align: GAlign = GAlign.NoAlign,
+        fill_direction: GFillDirection = GFillDirection.TopLeft,
+        overflow: GOverflow = GOverflow.Visible,
+        padding: int = 5,
+    ) -> None:
+        super().__init__(
+            size, position, shape, align, overflow=overflow, padding=padding
+        )
+        self.fill_direction = fill_direction
+        self._font = pygame.font.SysFont("Comic Sans MS", 10)
+
     @GContainerBase.fill_direction.setter
     def fill_direction(self, f: GFillDirection):
         if not isinstance(f, GFillDirection):
@@ -282,10 +437,145 @@ class GcontainerGrid(GContainerBase, GDrawable):
         if f not in GFillDirection:
             raise ValueError("Invalid fill direction value supplied")
 
-        if (f == GFillDirection.Left) or (f == GFillDirection.Right):
-            raise ValueError("Invalid align for grid object, choose Top_ or Bottom_")
+        n_f = f
 
-        self._fill_direction = f
+        if f == GFillDirection.Left:
+            n_f = GFillDirection.TopLeft
+        elif f == GFillDirection.Right:
+            n_f = GFillDirection.TopRight
+        else:
+            n_f = f
+
+        self._fill_direction = n_f
 
     def draw(self, screen: Surface) -> None:
-        pass
+        x, y = self._position
+        width, height = self._size
+
+        if self._shape.shape_type == GShapeType.Square:
+            pygame.draw.rect(
+                screen,
+                DefaultColors.White._get_color,
+                pygame.Rect(x, y, width, height),
+                self.shape.border_size,
+            )
+        else:
+            pygame.draw.ellipse(
+                screen,
+                DefaultColors.White._get_color,
+                pygame.Rect(x, y, width, height),
+                self.shape.border_size,
+            )
+
+        if len(self._objects) == 0:
+            return
+
+        obj_entries: List[GDrawable] = list(self._objects.values())
+        biggest_size = list(map(lambda o: o.shape.size, obj_entries))
+        biggest_size.sort(reverse=True)
+        biggest_size = biggest_size[0]
+
+        max_grid_w = 0
+        # max_grid_h = 0
+        obj_entries_chunked: List[List[GDrawable]] = []
+
+        max_grid_w = math.floor(width / (biggest_size + self._spacing))
+        obj_entries_chunked = list(array_chunks(obj_entries, max_grid_w))
+
+        # if width >= height:
+        #     max_grid_w = math.floor(width / (biggest_size + self._spacing))
+        #     obj_entries_chunked = list(array_chunks(obj_entries, max_grid_w))
+        # elif height > width:
+        #     max_grid_h = math.floor(height / (biggest_size + self._spacing))
+        #     obj_entries_chunked = list(array_chunks(obj_entries, max_grid_h))
+
+        for j, o_a in enumerate(obj_entries_chunked):
+            for i, o in enumerate(o_a):
+                size = o.shape.size
+                x_l = 0
+                y_l = 0
+
+                if self._fill_direction == GFillDirection.TopLeft:
+                    x_l = x + (i * biggest_size) + (i * self._spacing) + self._padding
+                    y_l = y + (j * biggest_size) + (j * self._spacing) + self._padding
+                elif self._fill_direction == GFillDirection.TopRight:
+                    x_l = (
+                        (x + width)
+                        - (i * biggest_size)
+                        - (i * self._spacing)
+                        - self._padding
+                        - biggest_size
+                    )
+                    y_l = y + (j * biggest_size) + (j * self._spacing) + self._padding
+                elif self._fill_direction == GFillDirection.BottomLeft:
+                    x_l = x + (i * biggest_size) + (i * self._spacing) + self._padding
+                    y_l = (
+                        (y + height)
+                        - (j * biggest_size)
+                        - (j * self._spacing)
+                        - self._padding
+                        - biggest_size
+                    )
+                elif self._fill_direction == GFillDirection.BottomRight:
+                    x_l = (
+                        (x + width)
+                        - (i * biggest_size)
+                        - (i * self._spacing)
+                        - self._padding
+                        - biggest_size
+                    )
+                    y_l = (
+                        (y + height)
+                        - (j * biggest_size)
+                        - (j * self._spacing)
+                        - self._padding
+                        - biggest_size
+                    )
+
+                if self._overflow == GOverflow.Hidden:
+                    if self._fill_direction == GFillDirection.TopLeft:
+                        if x_l + biggest_size > x + self._size[0]:
+                            continue
+
+                        if y_l + biggest_size > y + self.size[1]:
+                            continue
+                    elif self._fill_direction == GFillDirection.TopRight:
+                        if x_l < x:
+                            continue
+                        if y_l + biggest_size > y + self.size[1]:
+                            continue
+                    elif self._fill_direction == GFillDirection.BottomLeft:
+                        if x_l + biggest_size > x + self._size[0]:
+                            continue
+                        if y_l < y:
+                            continue
+                    elif self._fill_direction == GFillDirection.BottomRight:
+                        if x_l < x:
+                            continue
+                        if y_l < y:
+                            continue
+
+                f_rect = (
+                    pygame.draw.rect(
+                        screen,
+                        o.shape.color,
+                        pygame.Rect(x_l, y_l, size, size),
+                    )
+                    if o.shape.shape_type == GShapeType.Square
+                    else pygame.draw.ellipse(
+                        screen,
+                        o.shape.color,
+                        pygame.Rect(x_l, y_l, size, size),
+                    )
+                )
+
+                text_surface = self._font.render(
+                    f"{o.id}", True, (0, 0, 0)  # type: ignore
+                )
+                screen.blit(
+                    text_surface,
+                    (
+                        f_rect.center[0] - (biggest_size / 4),
+                        f_rect.center[1] - (biggest_size / 4),
+                    ),
+                )
