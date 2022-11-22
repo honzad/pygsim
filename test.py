@@ -39,6 +39,7 @@ if __name__ == "__main__":
         position=(30, 30),
         overflow=GOverflow.Hidden,
         fill_direction=GFillDirection.Left,
+        reverse=True
     )
     env.add_drawable(c)
 

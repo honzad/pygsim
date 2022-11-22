@@ -54,6 +54,7 @@ class GContainerBase(ABC):
         overflow: GOverflow = GOverflow.Visible,
         padding: int = 5,
         spacing: int = 5,
+        reverse: bool = False,
     ) -> None:
         self._id = next(self._object_id_counter)
         self._objects: Dict[str, GDrawable] = {}
@@ -66,6 +67,7 @@ class GContainerBase(ABC):
         self._padding = padding
         self._spacing = spacing
         self._max_object_size = 0
+        self._reverse = reverse
 
     def __len__(self):
         return len(self._objects)
@@ -173,6 +175,17 @@ class GContainerBase(ABC):
 
         self._spacing = s
 
+    @property
+    def reverse(self) -> bool:
+        return self.reverse
+
+    @reverse.setter
+    def reverse(self, r: bool):
+        if not isinstance(r, bool):
+            raise ValueError("Invalid reverse type supplied")
+
+        self._reverse = r
+
     # Main functionality
 
     def enter(self, obj: GDrawable):
@@ -211,9 +224,18 @@ class GContainerRow(GContainerBase, GDrawable):
         fill_direction: GFillDirection = GFillDirection.TopLeft,
         overflow: GOverflow = GOverflow.Visible,
         padding: int = 5,
+        spacing: int = 5,
+        reverse: bool = False,
     ) -> None:
         super().__init__(
-            size, position, shape, align, overflow=overflow, padding=padding
+            size,
+            position,
+            shape,
+            align,
+            overflow=overflow,
+            padding=padding,
+            spacing=spacing,
+            reverse=reverse,
         )
         self.fill_direction = fill_direction
         self._font = pygame.font.SysFont("Comic Sans MS", 10)
@@ -260,6 +282,9 @@ class GContainerRow(GContainerBase, GDrawable):
             return
 
         obj_entries: List[GDrawable] = list(self._objects.values())
+
+        if self._reverse:
+            obj_entries.reverse()
 
         for i, o in enumerate(obj_entries):
             size = o.shape.size
@@ -318,9 +343,18 @@ class GContainerColumn(GContainerBase, GDrawable):
         fill_direction: GFillDirection = GFillDirection.TopLeft,
         overflow: GOverflow = GOverflow.Visible,
         padding: int = 5,
+        spacing: int = 5,
+        reverse: bool = False,
     ) -> None:
         super().__init__(
-            size, position, shape, align, overflow=overflow, padding=padding
+            size,
+            position,
+            shape,
+            align,
+            overflow=overflow,
+            padding=padding,
+            spacing=spacing,
+            reverse=reverse,
         )
         self.fill_direction = fill_direction
         self._font = pygame.font.SysFont("Comic Sans MS", 10)
@@ -367,6 +401,9 @@ class GContainerColumn(GContainerBase, GDrawable):
             return
 
         obj_entries: List[GDrawable] = list(self._objects.values())
+
+        if self._reverse:
+            obj_entries.reverse()
 
         for i, o in enumerate(obj_entries):
             size = o.shape.size
@@ -425,9 +462,18 @@ class GcontainerGrid(GContainerBase, GDrawable):
         fill_direction: GFillDirection = GFillDirection.TopLeft,
         overflow: GOverflow = GOverflow.Visible,
         padding: int = 5,
+        spacing: int = 5,
+        reverse: bool = False,
     ) -> None:
         super().__init__(
-            size, position, shape, align, overflow=overflow, padding=padding
+            size,
+            position,
+            shape,
+            align,
+            overflow=overflow,
+            padding=padding,
+            spacing=spacing,
+            reverse=reverse,
         )
         self.fill_direction = fill_direction
         self._font = pygame.font.SysFont("Comic Sans MS", 10)
@@ -474,6 +520,9 @@ class GcontainerGrid(GContainerBase, GDrawable):
             return
 
         obj_entries: List[GDrawable] = list(self._objects.values())
+
+        if self._reverse:
+            obj_entries.reverse()
 
         max_grid_w = 0
         # max_grid_h = 0
