@@ -1,5 +1,5 @@
 from pysg.drawing import GStateColorMapper, GShape, GShapeType, DefaultColors
-from pysg.core import GSimulationObject, GEnvironment
+from pysg.core import GSimulationObject, GEnvironment, GFactoryObject
 from pysg.drawing.container import (
     GContainerRow,
     GContainerColumn,
@@ -29,6 +29,15 @@ class TestObject(GSimulationObject):
         pass
 
 
+class TestFactory(GFactoryObject):
+    def draw(self, screen) -> None:
+        pass
+
+    def build(self):
+        obj = TestObject(self._env)
+        c3.enter(obj)
+
+
 if __name__ == "__main__":
     pygame.init()
     pygame.font.init()
@@ -39,7 +48,7 @@ if __name__ == "__main__":
         position=(30, 30),
         overflow=GOverflow.Hidden,
         fill_direction=GFillDirection.Left,
-        reverse=True
+        reverse=True,
     )
     env.add_drawable(c)
 
@@ -59,12 +68,6 @@ if __name__ == "__main__":
     )
     env.add_drawable(c3)
 
-    n = 50
+    fy = TestFactory(env, auto_run=True)
 
-    for i in range(n):
-        obj = TestObject(env)
-        c.enter(obj)
-        c2.enter(obj)
-        c3.enter(obj)
     env.run()
-    pass

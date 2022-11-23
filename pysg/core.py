@@ -1,7 +1,8 @@
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Callable, Any
 from enum import Enum
 from itertools import count
 from abc import abstractmethod
+from numpy.random import exponential
 
 from simpy.rt import RealtimeEnvironment
 import pygame
@@ -256,6 +257,86 @@ class GSimulationObject(GDrawable):
             return state
         else:
             raise ValueError("Invalid state type supplied")
+
+
+class GFactoryObject(GDrawable):
+    _object_id_counter = count(0)
+
+    def __init__(
+        self,
+        env: GEnvironment,
+        shape: Optional[GShape] = None,
+        distribution: Optional[Callable[[Any], float]] = None,
+        occurance: Optional[float] = None,
+        auto_run=False,
+    ) -> None:
+        self._id = next(self._object_id_counter)
+        self._env = env
+        self._distribution = self._set_time_function(distribution)
+        self._occurance = self._set_occurance(occurance)
+
+        super().__init__(shape)
+
+        if auto_run:
+            self.run()
+
+    # Properities
+
+    @property
+    def id(self) -> int:
+        return self._id
+
+    # Overridable
+
+    @property
+    def Distribution(self) -> Optional[Callable[[Any], float]]:
+        """Target to spawn. **CAN to be overidden, will use exponential \
+            distribution by default**
+        """
+        # Pylint will not support correct typing so we have to use # type: ignore
+        # at destination declaration, for instance.
+        # States = TestState  # type: ignore
+        pass
+
+    @property
+    def Occurance(self) -> Optional[float]:
+        """How often does this object spawn. **CAN to be overidden!**"""
+        # Pylint will not support correct typing so we have to use # type: ignore
+        # at destination declaration, for instance.
+        # States = TestState  # type: ignore
+        pass
+
+    def _life_cycle(self):
+        """Simulation life cycle. **HAS to be overidden!**"""
+        while True:
+            self.build()
+            yield self._env.timeout(self._distribution(self._occurance))
+
+    # Simulation
+
+    def run(self) -> None:
+        """Starts objects simulation"""
+        self._env.process(self._life_cycle())
+
+    @abstractmethod
+    def build(self):
+        pass
+
+    def _set_time_function(
+        self, c: Optional[Callable[[Any], float]]
+    ) -> Callable[[Any], float]:
+        if self.Distribution is None:
+            if c is None:
+                return exponential
+            return c
+        return self.Distribution
+
+    def _set_occurance(self, o: Optional[float]) -> float:
+        if self.Occurance is None:
+            if o is None:
+                return 1.0
+            return o
+        return self.Occurance
 
 
 # yield from
