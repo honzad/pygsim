@@ -10,6 +10,7 @@ from .container import (
     GFillDirection,
     GOverflow,
 )
+from .text import GText
 
 __all__ = [
     "GStateColorMapper",
@@ -25,4 +26,5 @@ __all__ = [
     "GAlign",
     "GFillDirection",
     "GOverflow",
+    "GText",
 ]

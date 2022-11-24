@@ -1,10 +1,10 @@
 from typing import Optional
 from abc import ABC, abstractmethod
 
-import pygame
 from pygame.surface import Surface
 
 from .shape import GShape, GShapeType
+from .color import DefaultColors
 
 
 class GDrawable(ABC):
@@ -19,14 +19,7 @@ class GDrawable(ABC):
 
     @shape.setter
     def shape(self, s: GShape) -> None:
-        if s.size <= 0:
-            raise ValueError("Zero or negative size of a shape supplied")
-
-        vals = [v.name for v in GShapeType]
-        if s.shape_type.name not in vals:
-            raise ValueError("Invalid shape type supplied")
-
-        self._shape = s
+        self._shape = self._set_shape(s)
 
     @property
     def Shape(self) -> Optional[GShape]:
@@ -57,8 +50,24 @@ class GDrawable(ABC):
         pass
 
     def _set_shape(self, shape: Optional[GShape]) -> GShape:
-        if shape is None:
-            if self.Shape is None:
-                return GShape(GShapeType.Circle, 10, -1, pygame.Color(255, 255, 255))
-            return self.Shape
-        return shape
+        target_shape = None
+
+        if self.Shape is not None:
+            target_shape = self.Shape
+
+        if shape is not None:
+            target_shape = shape
+
+        if target_shape is None:
+            target_shape = GShape(
+                GShapeType.Circle, 10, -1, DefaultColors.White._get_color
+            )
+
+        if target_shape.size <= 0:
+            raise ValueError("Zero or negative size of a shape supplied")
+
+        vals = [v.name for v in GShapeType]
+        if target_shape.shape_type.name not in vals:
+            raise ValueError("Invalid shape type supplied")
+
+        return target_shape
