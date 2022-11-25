@@ -14,6 +14,8 @@ from ..util import array_chunks
 
 
 class GAlign(Enum):
+    """Object alignment"""
+
     NoAlign = 0
     Top = 1
     TopLeft = 2
@@ -27,6 +29,8 @@ class GAlign(Enum):
 
 
 class GFillDirection(Enum):
+    """Container item fill direction"""
+
     TopLeft = 0
     TopRight = 1
     Left = 2
@@ -36,12 +40,37 @@ class GFillDirection(Enum):
 
 
 class GOverflow(Enum):
+    """Container overflow settings"""
+
     Visible = 0
     Hidden = 1
     # Clip = 2
 
 
 class GContainerBase(ABC):
+    """Base class for Containers
+
+    :param size: Container size
+    :type size: Tuple[int, int]
+    :param position: Container position
+    :type position: Tuple[int, int]
+    :param shape: Default container background shape, defaults to None
+    :type shape: Optional[GShape], optional
+    :param align: Container window aligment, defaults to GAlign.NoAlign
+    :type align: GAlign, optional
+    :param fill_direction: Container item fill direction, defaults \
+        to GFillDirection.TopLeft
+    :type fill_direction: GFillDirection, optional
+    :param overflow: Container overflow settings, defaults to GOverflow.Visible
+    :type overflow: GOverflow, optional
+    :param padding: Container inner padding, defaults to 5
+    :type padding: int, optional
+    :param spacing: Container item spacing, defaults to 5
+    :type spacing: int, optional
+    :param reverse: Container item order, defaults to False
+    :type reverse: bool, optional
+    """
+
     _object_id_counter = count(0)
 
     def __init__(
@@ -189,12 +218,24 @@ class GContainerBase(ABC):
     # Main functionality
 
     def enter(self, obj: GDrawable):
+        """Add object to this container
+
+        :param obj: Drawable object
+        :type obj: GDrawable
+        :raises Exception: if object is already in this container
+        """
         if f"{id(obj)}" in self._objects:
             raise Exception("Object already in this container")
         self._objects[f"{id(obj)}"] = obj
         self._max_object_size = self._set_max_object_size()
 
     def leave(self, obj: GDrawable):
+        """Remove object from this container
+
+        :param obj: Drawable object
+        :type obj: GDrawable
+        :raises Exception: if object is not in this container
+        """
         if f"{id(obj)}" not in self._objects:
             raise Exception("Object not in this container")
         del self._objects[f"{id(obj)}"]
@@ -232,13 +273,13 @@ class GContainerRow(GContainerBase, GDrawable):
             position,
             shape,
             align,
-            overflow=overflow,
-            padding=padding,
-            spacing=spacing,
-            reverse=reverse,
+            fill_direction,
+            overflow,
+            padding,
+            spacing,
+            reverse,
         )
-        self.fill_direction = fill_direction
-        self._font = pygame.font.SysFont("Comic Sans MS", 10)
+        self._font = pygame.font.Font(None, 20)
 
     @GContainerBase.fill_direction.setter
     def fill_direction(self, f: GFillDirection):
@@ -259,7 +300,7 @@ class GContainerRow(GContainerBase, GDrawable):
 
         self._fill_direction = n_f
 
-    def draw(self, screen: Surface) -> None:
+    def draw(self, screen: Surface, dt: float) -> None:
         x, y = self._position
         width, height = self._size
 
@@ -351,13 +392,13 @@ class GContainerColumn(GContainerBase, GDrawable):
             position,
             shape,
             align,
-            overflow=overflow,
-            padding=padding,
-            spacing=spacing,
-            reverse=reverse,
+            fill_direction,
+            overflow,
+            padding,
+            spacing,
+            reverse,
         )
-        self.fill_direction = fill_direction
-        self._font = pygame.font.SysFont("Comic Sans MS", 10)
+        self._font = pygame.font.Font(None, 20)
 
     @GContainerBase.fill_direction.setter
     def fill_direction(self, f: GFillDirection):
@@ -378,7 +419,7 @@ class GContainerColumn(GContainerBase, GDrawable):
 
         self._fill_direction = n_f
 
-    def draw(self, screen: Surface) -> None:
+    def draw(self, screen: Surface, dt: float) -> None:
         x, y = self._position
         width, height = self._size
 
@@ -470,13 +511,13 @@ class GcontainerGrid(GContainerBase, GDrawable):
             position,
             shape,
             align,
-            overflow=overflow,
-            padding=padding,
-            spacing=spacing,
-            reverse=reverse,
+            fill_direction,
+            overflow,
+            padding,
+            spacing,
+            reverse,
         )
-        self.fill_direction = fill_direction
-        self._font = pygame.font.SysFont("Comic Sans MS", 10)
+        self._font = pygame.font.Font(None, 20)
 
     @GContainerBase.fill_direction.setter
     def fill_direction(self, f: GFillDirection):
@@ -497,7 +538,7 @@ class GcontainerGrid(GContainerBase, GDrawable):
 
         self._fill_direction = n_f
 
-    def draw(self, screen: Surface) -> None:
+    def draw(self, screen: Surface, dt: float) -> None:
         x, y = self._position
         width, height = self._size
 

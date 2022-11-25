@@ -69,7 +69,7 @@ class GText(GDrawable):
 
     # Overides
 
-    def draw(self, screen: Surface) -> None:
+    def draw(self, screen: Surface, dt: float) -> None:
         if not (self._text and self._text.strip()):
             return
         text_surface = self._font.render(self._text, True, self._color)

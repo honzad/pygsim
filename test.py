@@ -1,5 +1,5 @@
 from pysg.drawing import GStateColorMapper, GShape, GShapeType, DefaultColors
-from pysg.core import GSimulationObject, GEnvironment, GFactoryObject
+from pysg.core import GSimulationObject, GSimulation, GFactoryObject, GSimulationSpeed
 from pysg.drawing.container import (
     GContainerRow,
     GContainerColumn,
@@ -26,9 +26,9 @@ class TestObject(GSimulationObject):
     )
 
     def life_cycle(self):
-        pass
+        yield self._env.timeout(1)
 
-    def draw(self, screen) -> None:
+    def draw(self, screen, dt) -> None:
         pass
 
 
@@ -39,16 +39,16 @@ class TestObjectVariant(GSimulationObject):
     )
 
     def life_cycle(self):
-        pass
+        yield self._env.timeout(1)
 
-    def draw(self, screen) -> None:
+    def draw(self, screen, dt) -> None:
         pass
 
 
 class TestFactory(GFactoryObject):
     Occurance = 0.7  # type: ignore
 
-    def draw(self, screen) -> None:
+    def draw(self, screen, dt) -> None:
         pass
 
     def build(self):
@@ -66,41 +66,42 @@ if __name__ == "__main__":
     pygame.init()
     pygame.font.init()
 
-    env = GEnvironment()
+    env = GSimulation(simulation_speed=GSimulationSpeed.Faster, debug_show=True)
+
     c = GContainerColumn(
-        size=(50, 200),
-        position=(30, 30),
+        size=(50, 300),
+        position=(30, 100),
         overflow=GOverflow.Hidden,
         fill_direction=GFillDirection.Left,
         reverse=True,
     )
     env.add_drawable(c)
 
-    t = GText(position=(10, 10), text="Column container", size=20)
+    t = GText(position=(10, 60), text="Column container", size=20)
     env.add_drawable(t)
 
     c2 = GContainerRow(
         size=(200, 50),
-        position=(150, 30),
+        position=(150, 100),
         overflow=GOverflow.Hidden,
         fill_direction=GFillDirection.Right,
     )
     env.add_drawable(c2)
 
-    t1 = GText(position=(200, 10), text="Row container", size=20)
+    t1 = GText(position=(150, 80), text="Row container", size=20)
     env.add_drawable(t1)
 
     c3 = GcontainerGrid(
-        size=(300, 150),
-        position=(150, 150),
+        size=(300, 200),
+        position=(150, 200),
         overflow=GOverflow.Hidden,
         fill_direction=GFillDirection.TopLeft,
     )
     env.add_drawable(c3)
 
-    t2 = GText(position=(200, 125), text="Grid container", size=20)
+    t2 = GText(position=(150, 180), text="Grid container", size=20)
     env.add_drawable(t2)
 
-    fy = TestFactory(env, auto_run=True)
+    fy = TestFactory(env)
 
     env.run()

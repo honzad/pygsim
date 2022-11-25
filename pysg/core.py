@@ -3,6 +3,7 @@ from enum import Enum
 from itertools import count
 from abc import abstractmethod
 from numpy.random import exponential
+import time
 
 from simpy.rt import RealtimeEnvironment
 import pygame
@@ -14,100 +15,13 @@ from .drawing.shape import GShape
 
 
 class GSimulationSpeed(Enum):
-    """Simulation speed enum, where each value is multiplier \
-        of normal simulation speed"""
+    """Simulation speed multiplier enum"""
 
     Real = 1
     Slow = 2
     Fast = 5
     Faster = 10
     Fastest = 100
-
-
-class GEnvironment(RealtimeEnvironment):
-    """Extended ``simpy.rt.RealtimeEnvironment`` with graphical \
-        capabilities of ``pygame`` to draw simulated objects.
-
-    :param fps: Screen refresh rate in times per second, defaults to 30
-    :type fps: int, optional
-    :param simulation_speed: How fast should simulation proceed, defaults \
-        to GSimulationSpeed.Real
-    :type simulation_speed: Union[GSimulationSpeed, int, float], optional
-    :param resolution: Defines ``pygame`` window size, defaults to (800, 600)
-    :type resolution: Tuple[int, int], optional
-    :param background_color: _description_, defaults to ``pygame.Color(0,0,0)``
-    :type background_color: pygame.Color, optional,,
-    :param auto_run: Specifies if the simulation will start on it self, or if it \
-        needs to be started via ``.run()`` elsewhere, defaults to False
-    :type auto_run: bool, optional
-    """
-
-    def __init__(
-        self,
-        fps=30,
-        simulation_speed: Union[GSimulationSpeed, int, float] = GSimulationSpeed.Real,
-        resolution=(800, 600),
-        background_color=pygame.Color(0, 0, 0),
-        auto_run=False,
-        *args,
-        **kwargs,
-    ) -> None:
-        factor = get_factor_from_speed(simulation_speed)
-        super().__init__(factor=factor, *args, **kwargs)
-        self._fps = fps
-        self._ticks_per_frame = 1.0 / (self.factor * fps)
-        self._resolution = resolution
-        self._on_pygame_quit = self.event()
-        self._background_color = background_color
-        self._screen: Surface = pygame.display.set_mode(self._resolution)
-        self._draw_callbacks: List[GDrawable] = []
-
-        if auto_run:
-            self.run()
-
-    def _draw_loop(self):
-        """Drawing loop using timeout calculated from desired \
-            simulation speed and fps
-        """
-        while True:
-            if self._is_quit_requested():
-                self._on_pygame_quit.succeed()
-            self._redraw()
-            yield self.timeout(self._ticks_per_frame)
-
-    def _redraw(self) -> None:
-        """Redraws screen and tells every registered drawable to draw itself"""
-        self._screen.fill(self._background_color)
-        for draw_call in self._draw_callbacks:
-            draw_call(screen=self._screen)
-            pygame.display.flip()
-            # Or use update in each draw calls to only specific parts
-
-    def add_drawable(self, callable: GDrawable):
-        self._draw_callbacks.append(callable)
-
-    def remove_drawable(self, callable: GDrawable):
-        targetId = -1
-        for index, item in enumerate(self._draw_callbacks):
-            if id(item) == id(callable):
-                targetId = index
-                break
-
-        if targetId != -1:
-            self._draw_callbacks.pop(targetId)
-
-    def _is_quit_requested(self) -> bool:
-        """Checks if there is pygame quit event happening
-
-        :return: Returns true if pygame recieved quit event
-        :rtype: bool
-        """
-        return any((e for e in pygame.event.get() if e.type == pygame.QUIT))
-
-    def run(self) -> None:
-        """Starts simulation and draw loop"""
-        self.process(self._draw_loop())
-        return super().run(until=self._on_pygame_quit)
 
 
 def get_factor_from_speed(
@@ -126,6 +40,7 @@ def get_factor_from_speed(
     :rtype: float
     """
     factor = 1.0
+
     if isinstance(simulation_speed, GSimulationSpeed):
         values = [m.value for m in GSimulationSpeed]
         if simulation_speed.value not in values:
@@ -137,7 +52,162 @@ def get_factor_from_speed(
         factor = 1 / simulation_speed
     else:
         raise ValueError("Invalid simulation speed ")
+
     return factor
+
+
+class GSimulation(RealtimeEnvironment):
+    """Extended ``simpy.rt.RealtimeEnvironment`` with graphical \
+        capabilities of ``pygame`` to draw simulated objects.
+
+    :param fps: Screen refresh rate in times per second, defaults to 30
+    :type fps: int, optional
+    :param resolution: Defines ``pygame`` window size, defaults to (800, 600)
+    :type resolution: Tuple[int, int], optional
+    :param background_color: Screen background color, \
+        defaults to ``pygame.Color(0,0,0)``
+    :type background_color: pygame.Color, optional,,
+    :param simulation_speed: How fast should simulation proceed, defaults \
+        to GSimulationSpeed.Real
+    :type simulation_speed: Union[GSimulationSpeed, int, float], optional
+    :param simulation_strict: If the simulation should be strict
+    :type simulation_strict: bool, optional
+    :param debug_show: Show debug stats, defaults to False
+    :type debug_show: bool, optional
+    :param debug_size: Debug stats size, defaults to 20
+    :type debug_size: int, optional
+    """
+
+    def __init__(
+        self,
+        fps=30,
+        resolution=(800, 600),
+        background_color=pygame.Color(0, 0, 0),
+        simulation_speed: Union[GSimulationSpeed, int, float] = GSimulationSpeed.Real,
+        simulation_strict=False,
+        debug_show=False,
+        debug_size=20,
+    ) -> None:
+        # Pygame
+
+        pygame.init()
+        pygame.font.init()
+
+        # Graphics
+
+        self._fps = fps
+        self._resolution = resolution
+        self._background_color = background_color
+        self._screen = pygame.display.set_mode(self._resolution)
+        self._draw_calls: List[Callable[[Surface, float], None]] = []
+
+        self._font = pygame.font.Font(None, debug_size)
+
+        self._show_debug = debug_show
+
+        # Simulation
+
+        factor = get_factor_from_speed(simulation_speed)
+        self._frame_ticks = 1 / (factor * self._fps)
+        super().__init__(factor=factor, strict=simulation_strict)
+        self._exit_event = self.event()
+
+    @property
+    def screen(self) -> Surface:
+        return self._screen
+
+    def _event_loop(self):
+        if self._exit_event.triggered:
+            self._exit_event = self.event()
+
+        run = True
+
+        last_tick = time.time()
+
+        # Start the draw loop
+        while run:
+            # Get delta time
+            current_tick = time.time()
+            dt = current_tick - last_tick
+            last_tick = current_tick
+
+            # Pygame event loop
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    run = False
+
+            # Process draw calls
+            self._process_draw_calls(dt)
+
+            # sleep_time = self._frame_ticks - dt
+
+            # Sleep for tick count to maintain fps
+            # if sleep_time > 0:
+            #     yield self.timeout(sleep_time)
+            # else:
+            #     yield self.timeout(self._frame_ticks)
+
+            yield self.timeout(self._frame_ticks)
+
+        # End the simulation
+        self._exit_event.succeed()
+
+    def _process_draw_calls(self, delta: float):
+        # Repaint the screen
+        self._screen.fill(self._background_color)
+        # Repaint each draw call
+        for draw_call in self._draw_calls:
+            draw_call(self._screen, delta)
+        # Draw debug
+        self._draw_debug(self._screen, delta)
+        # Refresh screen
+        pygame.display.flip()
+
+    def _draw_debug(self, screen: Surface, dt: float):
+        if not self._show_debug:
+            return
+
+        if dt == 0.0:
+            return
+
+        text_fps_surface = self._font.render(
+            f"FPS = {round(1/dt, 2)}", True, (255, 255, 255)
+        )
+        text_t_surface = self._font.render(
+            f"t = {round(self.now, 2)}", True, (255, 255, 255)
+        )
+        text_t_rect = text_t_surface.get_rect()
+
+        screen.blit(text_fps_surface, (5, 5))
+        screen.blit(text_t_surface, (5, 10 + text_t_rect.height))
+
+    def add_drawable(self, callable: GDrawable):
+        """Adds drawable object to draw call pool
+
+        :param callable: Callable GDrawable object
+        :type callable: GDrawable
+        """
+        self._draw_calls.append(callable)
+
+    def remove_drawable(self, callable: GDrawable):
+        """Removes drawable object from draw call pool
+
+        :param callable: Callable GDrawable object
+        :type callable: GDrawable
+        """
+        targetId = -1
+        for index, item in enumerate(self._draw_calls):
+            if id(item) == id(callable):
+                targetId = index
+                break
+
+        if targetId != -1:
+            self._draw_calls.pop(targetId)
+
+    def run(self):
+        """Starts the simulation"""
+        self.process(self._event_loop())
+        return super().run(until=self._exit_event)
 
 
 class GSimulationObject(GDrawable):
@@ -174,11 +244,10 @@ class GSimulationObject(GDrawable):
 
     def __init__(
         self,
-        env: GEnvironment,
+        env: GSimulation,
         states: Optional[GStateColorMapperMeta] = None,
         default_state: Optional[GStateColorMapper] = None,
         shape: Optional[GShape] = None,
-        auto_run=False,
     ) -> None:
         self._id = next(self._object_id_counter)
         self._env = env
@@ -187,8 +256,7 @@ class GSimulationObject(GDrawable):
 
         super().__init__(shape)
 
-        if auto_run:
-            self.run()
+        self.run()
 
     # Properities
 
@@ -260,15 +328,27 @@ class GSimulationObject(GDrawable):
 
 
 class GFactoryObject(GDrawable):
+    """Factory class for specified objects
+
+    :param env: Main simulation object
+    :type env: GSimulation
+    :param shape: Default shape, defaults to None
+    :type shape: Optional[GShape], optional
+    :param distribution: Default distribution function, defaults to \
+        :func:`~numpy.random.exponential`
+    :type distribution: Optional[Callable[[Any], float]], optional
+    :param occurance: How often should build function be called, defaults to 1.0
+    :type occurance: Optional[float], optional
+    """
+
     _object_id_counter = count(0)
 
     def __init__(
         self,
-        env: GEnvironment,
+        env: GSimulation,
         shape: Optional[GShape] = None,
         distribution: Optional[Callable[[Any], float]] = None,
         occurance: Optional[float] = None,
-        auto_run=False,
     ) -> None:
         self._id = next(self._object_id_counter)
         self._env = env
@@ -277,8 +357,7 @@ class GFactoryObject(GDrawable):
 
         super().__init__(shape)
 
-        if auto_run:
-            self.run()
+        self.run()
 
     # Properities
 
@@ -320,6 +399,10 @@ class GFactoryObject(GDrawable):
 
     @abstractmethod
     def build(self):
+        """Building function, has to be overriden
+
+        This function is called every specified semi random interval
+        """
         pass
 
     def _set_time_function(

@@ -13,6 +13,16 @@ class GDrawable(ABC):
     def __init__(self, shape: Optional[GShape] = None) -> None:
         self._shape = self._set_shape(shape)
 
+    def __call__(self, screen: Surface, dt: float) -> None:
+        """Calls the drawing function when class called as function
+
+        :param screen: Screen to draw this object on
+        :type screen: pygame.Surface
+        """
+        self.draw(screen, dt)
+
+    # Properities
+
     @property
     def shape(self) -> GShape:
         return self._shape
@@ -29,16 +39,10 @@ class GDrawable(ABC):
         # Shape = GShape(GShapeType.Circle, 10)  # type: ignore
         return None
 
-    def __call__(self, screen: Surface) -> None:
-        """Calls the drawing function when class called as function
-
-        :param screen: Screen to draw this object on
-        :type screen: pygame.Surface
-        """
-        self.draw(screen)
+    # Overidable
 
     @abstractmethod
-    def draw(self, screen: Surface) -> None:
+    def draw(self, screen: Surface, dt: float) -> None:
         """Drawing function, can be overidden.
 
         This draw call function is called `fps` times per second as \
@@ -48,6 +52,8 @@ class GDrawable(ABC):
         :type screen: pygame.Surface
         """
         pass
+
+    # Helpers
 
     def _set_shape(self, shape: Optional[GShape]) -> GShape:
         target_shape = None
