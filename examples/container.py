@@ -6,11 +6,8 @@ from pysg.drawing.container import (
     GcontainerGrid,
     GOverflow,
     GFillDirection,
-    GAlign,
 )
 from pysg.drawing.text import GText
-
-import pygame
 
 from numpy import random
 
@@ -64,47 +61,43 @@ class TestFactory(GFactoryObject):
 
 
 if __name__ == "__main__":
-    pygame.init()
-    pygame.font.init()
-
     env = GSimulation(simulation_speed=GSimulationSpeed.Faster, debug_show=True)
 
     c = GContainerColumn(
         size=(50, 300),
-        position=(30, 100),
+        position=(100, 100),
         overflow=GOverflow.Hidden,
         fill_direction=GFillDirection.Left,
         reverse=True,
     )
     env.add_drawable(c)
 
-    t = GText(position=(10, 60), text="Column container", size=20)
+    t = GText(position=(100, 80), text="Column container", size=20)
     env.add_drawable(t)
 
     c2 = GContainerRow(
-        size=(200, 50),
-        position=(150, 100),
+        size=(300, 50),
+        position=(250, 100),
         overflow=GOverflow.Hidden,
         fill_direction=GFillDirection.Right,
+        reverse=True,
     )
     env.add_drawable(c2)
 
-    t1 = GText(position=(150, 80), text="Row container", size=20)
+    t1 = GText(position=(250, 80), text="Row container", size=20)
     env.add_drawable(t1)
 
     c3 = GcontainerGrid(
         size=(300, 200),
-        position=(150, 200),
+        position=(250, 200),
         overflow=GOverflow.Hidden,
         fill_direction=GFillDirection.TopLeft,
+        reverse=True,
     )
     env.add_drawable(c3)
 
-    t2 = GText(position=(150, 180), text="Grid container", size=20)
+    t2 = GText(position=(250, 180), text="Grid container", size=20)
     env.add_drawable(t2)
-
-    t3 = GText(position=(10, -10), text="ALign test", size=20, align=GAlign.BottomLeft)
-    env.add_drawable(t3)
 
     fy = TestFactory(env)
 

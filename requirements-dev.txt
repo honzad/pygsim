@@ -1,0 +1,14 @@
+flake8
+sphinx
+sphinx-rtd-theme
+tox
+twine
+wheel
+pytest
+pytest-cov
+check-manifest
+bumpversion
+pyflakes
+pre-commit
+black
+setuptools_scm

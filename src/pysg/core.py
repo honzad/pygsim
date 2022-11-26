@@ -82,7 +82,7 @@ class GSimulation(RealtimeEnvironment):
         self,
         fps=30,
         resolution=(800, 600),
-        background_color=pygame.Color(0, 0, 0),
+        background_color=pygame.Color(51, 51, 51),
         simulation_speed: Union[GSimulationSpeed, int, float] = GSimulationSpeed.Real,
         simulation_strict=False,
         debug_show=False,
