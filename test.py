@@ -6,6 +6,7 @@ from pysg.drawing.container import (
     GcontainerGrid,
     GOverflow,
     GFillDirection,
+    GAlign,
 )
 from pysg.drawing.text import GText
 
@@ -101,6 +102,9 @@ if __name__ == "__main__":
 
     t2 = GText(position=(150, 180), text="Grid container", size=20)
     env.add_drawable(t2)
+
+    t3 = GText(position=(10, -10), text="ALign test", size=20, align=GAlign.BottomLeft)
+    env.add_drawable(t3)
 
     fy = TestFactory(env)
 

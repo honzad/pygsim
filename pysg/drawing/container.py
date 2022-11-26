@@ -28,6 +28,48 @@ class GAlign(Enum):
     BottomRight = 9
 
 
+def get_align_position(
+    screen: pygame.surface.Surface,
+    rect: pygame.rect.Rect,
+    position: Tuple[int, int],
+    align: GAlign,
+):
+    w, h = screen.get_size()
+
+    if align == GAlign.NoAlign:
+        rect.x = position[0]
+        rect.y = position[1]
+    elif align == GAlign.Top:
+        rect.x = int((w / 2) - rect.w / 2) + position[0]
+        rect.y = position[1]
+    elif align == GAlign.TopLeft:
+        rect.x = position[0]
+        rect.y = position[1]
+    elif align == GAlign.TopRight:
+        rect.x = int(w - rect.w) + position[0]
+        rect.y = position[1]
+    elif align == GAlign.Center:
+        rect.x = int((w / 2) - rect.w / 2) + position[0]
+        rect.y = int((h / 2) - rect.h / 2) + position[1]
+    elif align == GAlign.Left:
+        rect.x = position[0]
+        rect.y = int((h / 2) - rect.h / 2) + position[1]
+    elif align == GAlign.Right:
+        rect.x = int(w - rect.w) + position[0]
+        rect.y = int((h / 2) - rect.h / 2) + position[1]
+    elif align == GAlign.Bottom:
+        rect.x = int((w / 2) - rect.w / 2) + position[0]
+        rect.y = int(h - rect.h) + position[1]
+    elif align == GAlign.BottomLeft:
+        rect.x = position[0]
+        rect.y = int(h - rect.h) + position[1]
+    elif align == GAlign.BottomRight:
+        rect.x = int(w - rect.w) + position[0]
+        rect.y = int(h - rect.h) + position[1]
+
+    return rect
+
+
 class GFillDirection(Enum):
     """Container item fill direction"""
 
@@ -279,6 +321,7 @@ class GContainerRow(GContainerBase, GDrawable):
             spacing,
             reverse,
         )
+
         self._font = pygame.font.Font(None, 20)
 
     @GContainerBase.fill_direction.setter
@@ -301,21 +344,28 @@ class GContainerRow(GContainerBase, GDrawable):
         self._fill_direction = n_f
 
     def draw(self, screen: Surface, dt: float) -> None:
-        x, y = self._position
+        x_pos, y_pos = self._position
         width, height = self._size
+
+        bg_rect = pygame.Rect(x_pos, y_pos, width, height)
+
+        position_rect = get_align_position(screen, bg_rect, self._position, self._align)
+
+        x = position_rect.x
+        y = position_rect.y
 
         if self._shape.shape_type == GShapeType.Square:
             pygame.draw.rect(
                 screen,
                 DefaultColors.White._get_color,
-                pygame.Rect(x, y, width, height),
+                position_rect,
                 self.shape.border_size,
             )
         else:
             pygame.draw.ellipse(
                 screen,
                 DefaultColors.White._get_color,
-                pygame.Rect(x, y, width, height),
+                position_rect,
                 self.shape.border_size,
             )
 
@@ -347,7 +397,7 @@ class GContainerRow(GContainerBase, GDrawable):
                     if x_l < x:
                         continue
                 else:
-                    if x_l + self._max_object_size > x + self._size[0]:
+                    if x_l + self._max_object_size > x + width:
                         continue
 
             f_rect = (
@@ -420,21 +470,28 @@ class GContainerColumn(GContainerBase, GDrawable):
         self._fill_direction = n_f
 
     def draw(self, screen: Surface, dt: float) -> None:
-        x, y = self._position
+        x_pos, y_pos = self._position
         width, height = self._size
+
+        bg_rect = pygame.Rect(x_pos, y_pos, width, height)
+
+        position_rect = get_align_position(screen, bg_rect, self._position, self._align)
+
+        x = position_rect.x
+        y = position_rect.y
 
         if self._shape.shape_type == GShapeType.Square:
             pygame.draw.rect(
                 screen,
                 DefaultColors.White._get_color,
-                pygame.Rect(x, y, width, height),
+                position_rect,
                 self.shape.border_size,
             )
         else:
             pygame.draw.ellipse(
                 screen,
                 DefaultColors.White._get_color,
-                pygame.Rect(x, y, width, height),
+                position_rect,
                 self.shape.border_size,
             )
 
@@ -466,7 +523,7 @@ class GContainerColumn(GContainerBase, GDrawable):
                     if y_l < y:
                         continue
                 else:
-                    if y_l + self._max_object_size > y + self._size[1]:
+                    if y_l + self._max_object_size > y + height:
                         continue
 
             f_rect = (
@@ -539,21 +596,28 @@ class GcontainerGrid(GContainerBase, GDrawable):
         self._fill_direction = n_f
 
     def draw(self, screen: Surface, dt: float) -> None:
-        x, y = self._position
+        x_pos, y_pos = self._position
         width, height = self._size
+
+        bg_rect = pygame.Rect(x_pos, y_pos, width, height)
+
+        position_rect = get_align_position(screen, bg_rect, self._position, self._align)
+
+        x = position_rect.x
+        y = position_rect.y
 
         if self._shape.shape_type == GShapeType.Square:
             pygame.draw.rect(
                 screen,
                 DefaultColors.White._get_color,
-                pygame.Rect(x, y, width, height),
+                position_rect,
                 self.shape.border_size,
             )
         else:
             pygame.draw.ellipse(
                 screen,
                 DefaultColors.White._get_color,
-                pygame.Rect(x, y, width, height),
+                position_rect,
                 self.shape.border_size,
             )
 
@@ -644,17 +708,17 @@ class GcontainerGrid(GContainerBase, GDrawable):
 
                 if self._overflow == GOverflow.Hidden:
                     if self._fill_direction == GFillDirection.TopLeft:
-                        if x_l + self._max_object_size > x + self._size[0]:
+                        if x_l + self._max_object_size > x + width:
                             continue
-                        if y_l + self._max_object_size > y + self.size[1]:
+                        if y_l + self._max_object_size > y + height:
                             continue
                     elif self._fill_direction == GFillDirection.TopRight:
                         if x_l < x:
                             continue
-                        if y_l + self._max_object_size > y + self.size[1]:
+                        if y_l + self._max_object_size > y + height:
                             continue
                     elif self._fill_direction == GFillDirection.BottomLeft:
-                        if x_l + self._max_object_size > x + self._size[0]:
+                        if x_l + self._max_object_size > x + width:
                             continue
                         if y_l < y:
                             continue
