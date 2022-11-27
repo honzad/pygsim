@@ -28,14 +28,18 @@ from pysg.drawing.text import GText
 import pygame
 
 
+# Create states for checkout objects
 class CheckoutState(GStateColorMapper):
     Closed = "#FF0000"
     Open = "#00FF00"
     Busy = "#FFA500"
 
 
+# Create Checkout object
 class CheckoutObject(GSimulationObject):
+    # Assign States to this object
     States = CheckoutState  # type: ignore
+    # Create default shape for this type of object
     Shape = GShape(
         GShapeType.Square, 75, 2, DefaultColors.Yellow._get_color  # type: ignore
     )
@@ -68,10 +72,13 @@ class CheckoutObject(GSimulationObject):
 
     def life_cycle(self):
         while True:
+            # Check if checkout is closed, if so then wait
             if self.current_state == CheckoutState.Closed:
                 yield self._env.timeout(0.1)
                 continue
 
+            # Check if checkout is open and there arent any customers
+            # if so then wait period of time before closing
             if (
                 len(self._queued_customers) == 0
                 and self.current_state == CheckoutState.Open
@@ -84,13 +91,19 @@ class CheckoutObject(GSimulationObject):
                     yield self._env.process(self.close_checkout())
                 continue
 
+            # Check if there are between 1 to 9 custoemrs and
+            # if so set state to Open
             if len(self._queued_customers) > 0 and len(self._queued_customers) < 10:
                 self.current_state = CheckoutState.Open
+            # Check if there are more than 10 customers
+            # is so set state to Busy
             elif len(self._queued_customers) > 10:
                 self.current_state = CheckoutState.Busy
 
+            # If there is at least 1 customer, process them
             yield self._env.process(self._process_customer())
 
+    # Custom drawing function to draw checkout state
     def draw(self, screen, dt: float) -> None:
         pygame.draw.rect(
             screen,
@@ -100,31 +113,40 @@ class CheckoutObject(GSimulationObject):
         )
 
     def _process_customer(self):
+        # Take customer out of line
         customer, event = self._queued_customers.pop(0)
 
+        # Remove customer from queue container
         self._queue_container.leave(customer)
 
-        self.processedCustomer = customer
+        # Put customer in checkout container
         self._checkout_container.enter(customer)
 
+        # Set customer state and wait for some time in checkout
         customer.current_state = CustomerState.Checkout
-
         time_to_process = sum(
             [random.uniform(0.02, 0.2) for _ in range(customer.items_bought)]
         )
         yield self._env.timeout(time_to_process)
 
+        # Remove customer from queue container
         self._checkout_container.leave(customer)
 
-        self.processedCustomer = None
+        # Resolve event, which customer is waiting for
         event.succeed()
+
+        # Wait a moment before accepting another customer
         yield self._env.timeout(1)
 
     def enqueue_customer(self, customer):
         yield self._env.timeout(0.05)
+        # Create event for when customer is finished checkouting
         queue_event = self._env.event()
+        # Add customer to queue
         self._queued_customers.append((customer, queue_event))
+        # Put customer in queue container
         self._queue_container.enter(customer)
+        # Return waiting event
         return queue_event
 
     def open_checkout(self):
@@ -152,11 +174,13 @@ class CheckoutObject(GSimulationObject):
         yield self._env.timeout(0.01)
 
 
+# Create gender enum
 class GenderState(GStateColorMapper):
     Male = "#0000FF"
     Female = "#FFC0CB"
 
 
+# Create customer states
 class CustomerState(GStateColorMapper):
     WalkingToShopping = 0
     Shopping = 1
@@ -166,8 +190,11 @@ class CustomerState(GStateColorMapper):
     WalkingToExit = 5
 
 
+# Create customer object
 class CustomerObject(GSimulationObject):
+    # Set customers states
     States = CustomerState  # type: ignore
+    # Set default customer shape
     Shape = GShape(
         GShapeType.Circle, 50, -1, DefaultColors.Yellow._get_color  # type: ignore
     )
@@ -194,64 +221,84 @@ class CustomerObject(GSimulationObject):
         return self._items_bought
 
     def life_cycle(self):
+        # Put customer into walking to shopping container
         self._container_dict[f"{CustomerState.WalkingToShopping}"].enter(self)
 
         # Walk from store to shopping area
         yield self._env.timeout(random.randrange(1, 5))
 
+        # Remove customer from walking to shopping container
         self._container_dict[f"{CustomerState.WalkingToShopping}"].leave(self)
 
         # Shop for items
         self.current_state = CustomerState.Shopping
 
+        # Put customer into shopping container
         self._container_dict[f"{CustomerState.Shopping}"].enter(self)
 
+        # Create random shopping time based on gender
         shoppping_time = (
             random.triangular(3, 10, 25)
             if self._gender == GenderState.Male
             else random.triangular(10, 20, 30)
         )
+
+        # Create random items bought based on gender
         self._items_bought = int(
             random.triangular(1, 5, 15)
             if self._gender == GenderState.Male
             else random.triangular(10, 20, 30)
         )
 
+        # Await customer to be done with shopping
         yield self._env.timeout(shoppping_time)
 
+        # Remove customer from walking to shopping container
         self._container_dict[f"{CustomerState.Shopping}"].leave(self)
 
         # Walk from shopping to checkout
         self.current_state = CustomerState.WalkingToCheckout
 
+        # Put customer into walking to checkout container
         self._container_dict[f"{CustomerState.WalkingToCheckout}"].enter(self)
 
+        # Await customer to walk to checkout
         yield self._env.timeout(random.randrange(1, 5))
 
+        # Remove customer from walking to checkout container
         self._container_dict[f"{CustomerState.WalkingToCheckout}"].leave(self)
 
         # Enqueue
         store: StoreObject = self._store
+        # Get non busy checkout from store, if none open, open new one
         checkout: CheckoutObject = yield self._env.process(store.get_checkout())
         self.current_state = CustomerState.Queued
+        # Await till customer is done with queue and processed checkout
         event = yield self._env.process(checkout.enqueue_customer(self))
         yield self._env.any_of([event])
 
         # Walk from checkout to exit
         self.current_state = CustomerState.WalkingToExit
 
+        # Put customer into walking to exit container
         self._container_dict[f"{CustomerState.WalkingToExit}"].enter(self)
 
+        # Await till customer walks out of store
         yield self._env.timeout(random.randrange(1, 5))
 
+        # Remove customer from walking to exit container
         self._container_dict[f"{CustomerState.WalkingToExit}"].leave(self)
 
     def draw(self, screen, dt: float) -> None:
         pass
 
 
+# Create customer factory
 class CustomerFactory(GFactoryObject):
+    # Set factory type to infinite
     Type = FactoryType.Infinite  # type: ignore
+
+    # Set settings for distribution
     Occurance = 0.7  # type: ignore
 
     def __init__(
@@ -266,6 +313,7 @@ class CustomerFactory(GFactoryObject):
         self._container_dict = container_dict
         super().__init__(env, *args, **kwargs)
 
+    # Create customer objects
     def build(self):
         CustomerObject(self._env, self._store, self._container_dict)
 
@@ -273,7 +321,9 @@ class CustomerFactory(GFactoryObject):
         pass
 
 
+# Create store object
 class StoreObject(GFactoryObject):
+    # Set factory type to finite, becouse we have finite checkouts
     Type = FactoryType.Finite  # type: ignore
 
     def __init__(self, env: GSimulation, checkout_count: int, *args, **kwargs) -> None:
@@ -284,6 +334,7 @@ class StoreObject(GFactoryObject):
     def draw(self, screen, dt) -> None:
         pass
 
+    # Create checkouts and their containers
     def build(self):
         w, _ = self._env._resolution
         container_queue = GContainerRow(
@@ -317,6 +368,12 @@ class StoreObject(GFactoryObject):
         self._env.add_drawable(checkout)
         self._checkouts.append(checkout)
 
+    # Gets free checkout.
+    # If no open checkouts, this will open random one.
+    # If open and not busy, this will return non busy checkout
+    # with least of customers waiting.
+    # If busy and there are closed checkouts, this will open them.
+    # Otherwise just choose the checkout with least of customers
     def get_checkout(self):
         checkouts = self._checkouts
         open_checkouts = list(
