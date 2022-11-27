@@ -274,7 +274,11 @@ class GSimulationObject(GDrawable):
 
     @current_state.setter
     def current_state(self, s: Optional[GStateColorMapper]) -> None:
-        self._current_state = self._set_current_state(s)
+        c = self._set_current_state(s)
+        if c == self._current_state:
+            return
+        self._shape.color = c._get_color
+        self._current_state = c
 
     # Overridable
 
@@ -327,6 +331,11 @@ class GSimulationObject(GDrawable):
             raise ValueError("Invalid state type supplied")
 
 
+class FactoryType(Enum):
+    Infinite = 0
+    Finite = 1
+
+
 class GFactoryObject(GDrawable):
     """Factory class for specified objects
 
@@ -347,13 +356,18 @@ class GFactoryObject(GDrawable):
         self,
         env: GSimulation,
         shape: Optional[GShape] = None,
+        factory_type: FactoryType = FactoryType.Infinite,
+        factory_max_build=5,
         distribution: Optional[Callable[[Any], float]] = None,
         occurance: Optional[float] = None,
     ) -> None:
         self._id = next(self._object_id_counter)
         self._env = env
-        self._distribution = self._set_time_function(distribution)
+        self._type = self._set_type(factory_type)
+        self._max_build = self._set_build_count(factory_max_build)
+        self._distribution = self._set_time(distribution)
         self._occurance = self._set_occurance(occurance)
+        self._build_count = 0
 
         super().__init__(shape)
 
@@ -365,7 +379,27 @@ class GFactoryObject(GDrawable):
     def id(self) -> int:
         return self._id
 
+    @property
+    def build_count(self) -> int:
+        return self._build_count
+
     # Overridable
+
+    @property
+    def Type(self) -> Optional[FactoryType]:
+        """Factory type, either Infinite or Finite"""
+        # Pylint will not support correct typing so we have to use # type: ignore
+        # at destination declaration, for instance.
+        # States = TestState  # type: ignore
+        pass
+
+    @property
+    def BuildCount(self) -> Optional[int]:
+        """Finite factory type build count"""
+        # Pylint will not support correct typing so we have to use # type: ignore
+        # at destination declaration, for instance.
+        # States = TestState  # type: ignore
+        pass
 
     @property
     def Distribution(self) -> Optional[Callable[[Any], float]]:
@@ -386,10 +420,16 @@ class GFactoryObject(GDrawable):
         pass
 
     def _life_cycle(self):
-        """Simulation life cycle. **HAS to be overidden!**"""
-        while True:
-            self.build()
-            yield self._env.timeout(self._distribution(self._occurance))
+        if self._type == FactoryType.Infinite:
+            while True:
+                self.build()
+                self._build_count += 1
+                yield self._env.timeout(self._distribution(self._occurance))
+        else:
+            for i in range(self._max_build):
+                self.build()
+                self._build_count += 1
+                yield self._env.timeout(0)
 
     # Simulation
 
@@ -405,9 +445,23 @@ class GFactoryObject(GDrawable):
         """
         pass
 
-    def _set_time_function(
-        self, c: Optional[Callable[[Any], float]]
-    ) -> Callable[[Any], float]:
+    # Helpers
+
+    def _set_build_count(self, c: Optional[int]) -> int:
+        if self.BuildCount is None:
+            if c is None:
+                return 5
+            return c
+        return self.BuildCount
+
+    def _set_type(self, t: Optional[FactoryType]) -> FactoryType:
+        if self.Type is None:
+            if t is None:
+                return FactoryType.Infinite
+            return t
+        return self.Type
+
+    def _set_time(self, c: Optional[Callable[[Any], float]]) -> Callable[[Any], float]:
         if self.Distribution is None:
             if c is None:
                 return exponential
@@ -420,6 +474,3 @@ class GFactoryObject(GDrawable):
                 return 1.0
             return o
         return self.Occurance
-
-
-# yield from

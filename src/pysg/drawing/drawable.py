@@ -76,4 +76,4 @@ class GDrawable(ABC):
         if target_shape.shape_type.name not in vals:
             raise ValueError("Invalid shape type supplied")
 
-        return target_shape
+        return target_shape.copy()

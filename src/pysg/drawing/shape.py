@@ -1,5 +1,5 @@
 from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 import pygame
 
 
@@ -14,3 +14,9 @@ class GShape:
     size: int
     border_size: int
     color: pygame.Color
+
+    def copy(self) -> "GShape":
+        clone = GShape(GShapeType.Circle, 10, -1, pygame.Color(0, 0, 0))
+        for field in fields(GShape):
+            setattr(clone, field.name, getattr(self, field.name))
+        return clone

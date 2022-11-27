@@ -292,6 +292,8 @@ class GContainerBase(ABC):
 
     def _set_max_object_size(self) -> int:
         obj_entries: List[GDrawable] = list(self._objects.values())
+        if len(obj_entries) == 0:
+            return 0
         biggest_size = list(map(lambda o: o.shape.size, obj_entries))
         biggest_size.sort(reverse=True)
         return biggest_size[0]
