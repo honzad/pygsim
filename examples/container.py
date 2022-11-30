@@ -1,13 +1,13 @@
-from pysg.drawing import GStateColorMapper, GShape, GShapeType, DefaultColors
-from pysg.core import GSimulationObject, GSimulation, GFactoryObject, GSimulationSpeed
-from pysg.drawing.container import (
+from pygsim.drawing import GStateColorMapper, GShape, GShapeType, DefaultColors
+from pygsim.core import GSimulationObject, GSimulation, GFactoryObject, GSimulationSpeed
+from pygsim.drawing.container import (
     GContainerRow,
     GContainerColumn,
     GcontainerGrid,
     GOverflow,
     GFillDirection,
 )
-from pysg.drawing.text import GText
+from pygsim.drawing.text import GText
 
 from numpy import random
 

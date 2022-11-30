@@ -3,7 +3,7 @@ branch = True
 
 [paths]
 source =
-  pysg/
+  pygsim/
 
 [report]
 # Regexes for lines to exclude from consideration

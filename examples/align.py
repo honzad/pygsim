@@ -1,7 +1,7 @@
-from pysg.drawing import GStateColorMapper, GShape, GShapeType, DefaultColors
-from pysg.core import GSimulationObject, GSimulation, GSimulationSpeed
-from pysg.drawing.container import GAlign
-from pysg.drawing.text import GText
+from pygsim.drawing import GStateColorMapper, GShape, GShapeType, DefaultColors
+from pygsim.core import GSimulationObject, GSimulation, GSimulationSpeed
+from pygsim.drawing.container import GAlign
+from pygsim.drawing.text import GText
 
 
 class TestState(GStateColorMapper):

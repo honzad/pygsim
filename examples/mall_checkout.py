@@ -2,20 +2,20 @@ from typing import Optional, List, Tuple, Dict
 from simpy.events import Event
 import random
 
-from pysg.drawing import (
+from pygsim.drawing import (
     GStateColorMapper,
     GShape,
     GShapeType,
     DefaultColors,
 )
-from pysg.core import (
+from pygsim.core import (
     GSimulationObject,
     GSimulation,
     GFactoryObject,
     GSimulationSpeed,
     FactoryType,
 )
-from pysg.drawing.container import (
+from pygsim.drawing.container import (
     GContainerRow,
     GcontainerGrid,
     GContainerBase,
@@ -23,7 +23,7 @@ from pysg.drawing.container import (
     GOverflow,
 )
 
-from pysg.drawing.text import GText
+from pygsim.drawing.text import GText
 
 import pygame
 
